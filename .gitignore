@@ -1,40 +1,10 @@
-HELP.md
-target/
-.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
+# Shared ignores for the whole repo.
+# backend/.gitignore and frontend/.gitignore hold the project-specific ones.
 
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
-
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-### VS Code ###
+.DS_Store
+.idea/
 .vscode/
 
-### macOS ###
-.DS_Store
-
-### Local config (secrets, never commit) ###
+# Local config with secrets, never commit
 local.properties
 .env
