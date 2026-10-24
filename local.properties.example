@@ -1,0 +1,6 @@
+# Copy this file to local.properties and fill in real values. local.properties is gitignored.
+DB_URL=jdbc:mysql://localhost:3306/campaign_dev?createDatabaseIfNotExist=true
+DB_USERNAME=root
+DB_PASSWORD=change-me
+# At least 32 characters. Generate one with: openssl rand -base64 48
+JWT_SECRET=change-me-to-a-long-random-secret
