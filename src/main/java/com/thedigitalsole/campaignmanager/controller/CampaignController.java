@@ -4,11 +4,7 @@ import com.thedigitalsole.campaignmanager.dto.campaign.CampaignMonthRequest;
 import com.thedigitalsole.campaignmanager.dto.campaign.CampaignMonthResponse;
 import com.thedigitalsole.campaignmanager.dto.campaign.CampaignRequest;
 import com.thedigitalsole.campaignmanager.dto.campaign.CampaignResponse;
-import com.thedigitalsole.campaignmanager.dto.campaign.CreateGeoRequest;
-import com.thedigitalsole.campaignmanager.dto.campaign.CreateVerticalRequest;
 import com.thedigitalsole.campaignmanager.dto.finance.CampaignSummaryResponse;
-import com.thedigitalsole.campaignmanager.model.campaign.Geo;
-import com.thedigitalsole.campaignmanager.model.campaign.Vertical;
 import com.thedigitalsole.campaignmanager.service.CampaignService;
 import com.thedigitalsole.campaignmanager.service.FinanceService;
 import jakarta.validation.Valid;
@@ -27,32 +23,6 @@ public class CampaignController {
 
     private final CampaignService campaignService;
     private final FinanceService financeService;
-
-    @PostMapping("/geos")
-    @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
-    public Geo createGeo(@Valid @RequestBody CreateGeoRequest request) {
-        return campaignService.createGeo(request);
-    }
-
-    @GetMapping("/geos")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
-    public List<Geo> getAllGeos() {
-        return campaignService.getAllGeos();
-    }
-
-    @PostMapping("/verticals")
-    @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
-    public Vertical createVertical(@Valid @RequestBody CreateVerticalRequest request) {
-        return campaignService.createVertical(request);
-    }
-
-    @GetMapping("/verticals")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
-    public List<Vertical> getAllVerticals() {
-        return campaignService.getAllVerticals();
-    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

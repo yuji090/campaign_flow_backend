@@ -41,6 +41,10 @@ public class PartnerResponse {
 
     private LocalDateTime updatedAt;
 
+    private String updatedByName;
+
+    private Long version;
+
     public record EmployeeRef(Long id, String name) {
     }
 }

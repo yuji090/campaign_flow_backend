@@ -1,12 +1,12 @@
 package com.thedigitalsole.campaignmanager.model.partner;
 
+import com.thedigitalsole.campaignmanager.model.BaseEntity;
 import com.thedigitalsole.campaignmanager.model.user.User;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -19,11 +19,7 @@ import java.util.Set;
 @Getter
 @Setter
 @NoArgsConstructor
-public class Partner {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class Partner extends BaseEntity {
 
     @Column(nullable = false, unique = true)
     private String companyName;
@@ -64,19 +60,4 @@ public class Partner {
 
     @Column(nullable = false)
     private boolean active = true;
-
-    private LocalDateTime createdAt;
-
-    private LocalDateTime updatedAt;
-
-    @PrePersist
-    void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = createdAt;
-    }
-
-    @PreUpdate
-    void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
 }

@@ -1,4 +1,4 @@
-import { clearSession, getToken, isTokenExpired } from '../lib/auth'
+import { clearSession, getToken } from '../lib/auth'
 
 const API_URL =
   import.meta.env.VITE_API_URL || 'http://localhost:8080'
@@ -19,11 +19,10 @@ const apiRequest = async (endpoint, options = {}) => {
 
   if (!response.ok) {
     let message = 'Something went wrong'
-    let hasBody = false
 
+    // The backend always answers errors with { status, error, message, errors? }
     try {
       const data = await response.json()
-      hasBody = true
       message = data.message || message
 
       // Validation errors: show the first field error
@@ -35,20 +34,15 @@ const apiRequest = async (endpoint, options = {}) => {
       // Response body is not JSON
     }
 
-    if (!hasBody && (response.status === 401 || response.status === 403)) {
-      // Expired token: back to login. Valid token: the role is not allowed.
-      if (endpoint === '/api/auth/login') {
-        message = 'Invalid email or password'
-      } else if (token && isTokenExpired(token)) {
-        clearSession()
-        window.location.href = '/login'
-        message = 'Session expired, please sign in again'
-      } else {
-        message = 'You do not have access to this'
-      }
+    // 401 = token missing, expired or invalid: back to login (403 just means the role is not allowed)
+    if (response.status === 401 && endpoint !== '/api/auth/login') {
+      clearSession()
+      window.location.href = '/login'
     }
 
-    throw new Error(message)
+    const error = new Error(message)
+    error.status = response.status
+    throw error
   }
 
   if (response.status === 204) {

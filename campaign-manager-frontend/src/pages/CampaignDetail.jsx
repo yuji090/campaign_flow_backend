@@ -69,6 +69,7 @@ export default function CampaignDetail() {
       events: existing ? String(existing.events) : '',
       revenue: existing ? String(existing.revenue) : '',
       notes: existing?.notes || '',
+      version: existing?.version,
       existing: Boolean(existing),
       fixedMonth: Boolean(month),
     })
@@ -101,6 +102,7 @@ export default function CampaignDetail() {
         events: entry.events === '' ? 0 : Number(entry.events),
         revenue: Number(entry.revenue || 0),
         notes: entry.notes,
+        version: entry.version,
       })
 
       setEntry(null)
@@ -211,6 +213,9 @@ export default function CampaignDetail() {
           <Detail label="Managed by">{campaign.managerName}</Detail>
           <Detail label="Start">{dateLabel(campaign.startDate)}</Detail>
           <Detail label="End">{campaign.endDate ? dateLabel(campaign.endDate) : 'Ongoing'}</Detail>
+          <Detail label="Last updated">
+            {campaign.updatedByName ? `${campaign.updatedByName} · ${dateLabel(campaign.updatedAt)}` : dateLabel(campaign.updatedAt)}
+          </Detail>
         </div>
 
         {campaign.notes && (

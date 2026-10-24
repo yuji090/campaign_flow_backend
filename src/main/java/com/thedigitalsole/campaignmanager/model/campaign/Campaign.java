@@ -1,5 +1,6 @@
 package com.thedigitalsole.campaignmanager.model.campaign;
 
+import com.thedigitalsole.campaignmanager.model.BaseEntity;
 import com.thedigitalsole.campaignmanager.model.partner.Partner;
 import com.thedigitalsole.campaignmanager.model.user.User;
 import jakarta.persistence.*;
@@ -9,18 +10,13 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "campaigns")
 @Getter
 @Setter
 @NoArgsConstructor
-public class Campaign {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class Campaign extends BaseEntity {
 
     @Column(nullable = false)
     private String name;
@@ -59,19 +55,4 @@ public class Campaign {
 
     @Column(columnDefinition = "TEXT")
     private String notes;
-
-    private LocalDateTime createdAt;
-
-    private LocalDateTime updatedAt;
-
-    @PrePersist
-    void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = createdAt;
-    }
-
-    @PreUpdate
-    void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
 }

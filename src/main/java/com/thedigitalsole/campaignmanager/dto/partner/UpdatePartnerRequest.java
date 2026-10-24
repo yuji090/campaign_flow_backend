@@ -38,4 +38,7 @@ public class UpdatePartnerRequest {
     private String notes;
 
     private Boolean active;
+
+    // Version the client loaded; a mismatch means someone else saved in between (409)
+    private Long version;
 }

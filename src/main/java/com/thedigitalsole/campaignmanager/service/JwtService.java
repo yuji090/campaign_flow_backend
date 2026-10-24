@@ -20,6 +20,14 @@ public class JwtService {
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.expiration}") long expiration
     ) {
+        // Fail at startup with a clear message instead of on the first login
+        if (secret == null || secret.length() < 32) {
+            throw new IllegalStateException(
+                    "JWT_SECRET is missing or shorter than 32 characters. "
+                            + "Set it in local.properties or the environment (generate one with: openssl rand -base64 48)"
+            );
+        }
+
         this.secretKey = Keys.hmacShaKeyFor(
                 secret.getBytes(StandardCharsets.UTF_8)
         );

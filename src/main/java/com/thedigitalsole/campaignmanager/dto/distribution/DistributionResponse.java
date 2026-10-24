@@ -43,4 +43,8 @@ public class DistributionResponse {
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+
+    private String updatedByName;
+
+    private Long version;
 }

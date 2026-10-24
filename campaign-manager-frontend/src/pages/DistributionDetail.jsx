@@ -81,6 +81,7 @@ export default function DistributionDetail() {
       payout: String(m.payout),
       payoutEdited: true,
       notes: m.notes || '',
+      version: m.version,
       existing: true,
     })
   }
@@ -134,6 +135,7 @@ export default function DistributionDetail() {
         payableEvents: Number(entry.payableEvents || 0),
         payout: Number(entry.payout || 0),
         notes: entry.notes,
+        version: entry.version,
       })
 
       setEntry(null)

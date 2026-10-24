@@ -128,8 +128,7 @@ public class FinanceService {
 
         Range range = range(from, to);
 
-        Campaign campaign = campaignRepository.findById(campaignId)
-                .orElseThrow(() -> new IllegalArgumentException("Campaign not found with id: " + campaignId));
+        Campaign campaign = campaignRepository.getOrThrow(campaignId);
 
         Map<LocalDate, Sums> byMonth = new TreeMap<>();
         Set<LocalDate> revenueEntered = new HashSet<>();

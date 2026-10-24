@@ -23,4 +23,7 @@ public class CampaignMonthRequest {
 
     @Size(max = 1000)
     private String notes;
+
+    // Version the client loaded; a mismatch means someone else saved in between (409)
+    private Long version;
 }

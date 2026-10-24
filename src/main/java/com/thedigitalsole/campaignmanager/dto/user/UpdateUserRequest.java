@@ -23,4 +23,7 @@ public class UpdateUserRequest {
 
     // false = user can no longer log in
     private Boolean enabled;
+
+    // Version the client loaded; a mismatch means someone else saved in between (409)
+    private Long version;
 }

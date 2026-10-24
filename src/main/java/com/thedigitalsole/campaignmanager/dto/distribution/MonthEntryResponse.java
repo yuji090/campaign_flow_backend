@@ -33,4 +33,6 @@ public class MonthEntryResponse {
     private String updatedByName;
 
     private LocalDateTime updatedAt;
+
+    private Long version;
 }

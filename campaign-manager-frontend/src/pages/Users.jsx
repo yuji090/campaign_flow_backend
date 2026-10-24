@@ -95,6 +95,7 @@ function UserModal({ user, onClose, onSaved }) {
           email: form.email,
           role: form.role,
           enabled: form.enabled,
+          version: user.version,
           ...(form.password && { password: form.password }),
         })
       }

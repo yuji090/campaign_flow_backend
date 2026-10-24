@@ -21,4 +21,6 @@ public class UserResponse {
     private boolean enabled;
 
     private LocalDateTime createdAt;
+
+    private Long version;
 }

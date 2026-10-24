@@ -28,4 +28,6 @@ public class CampaignMonthResponse {
     private String updatedByName;
 
     private LocalDateTime updatedAt;
+
+    private Long version;
 }

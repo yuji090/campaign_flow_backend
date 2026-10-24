@@ -1,19 +1,16 @@
 package com.thedigitalsole.campaignmanager.service;
 
 import com.thedigitalsole.campaignmanager.dto.campaign.*;
+import com.thedigitalsole.campaignmanager.exception.ConflictException;
+import com.thedigitalsole.campaignmanager.exception.NotFoundException;
 import com.thedigitalsole.campaignmanager.model.campaign.Campaign;
 import com.thedigitalsole.campaignmanager.model.campaign.CampaignMonth;
 import com.thedigitalsole.campaignmanager.model.campaign.CampaignStatus;
-import com.thedigitalsole.campaignmanager.model.campaign.Geo;
-import com.thedigitalsole.campaignmanager.model.campaign.Vertical;
 import com.thedigitalsole.campaignmanager.model.partner.Partner;
-import com.thedigitalsole.campaignmanager.model.user.User;
 import com.thedigitalsole.campaignmanager.repository.CampaignMonthRepository;
 import com.thedigitalsole.campaignmanager.repository.CampaignRepository;
 import com.thedigitalsole.campaignmanager.repository.DistributionRepository;
-import com.thedigitalsole.campaignmanager.repository.GeoRepository;
 import com.thedigitalsole.campaignmanager.repository.UserRepository;
-import com.thedigitalsole.campaignmanager.repository.VerticalRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,67 +28,8 @@ public class CampaignService {
     private final CampaignRepository campaignRepository;
     private final CampaignMonthRepository campaignMonthRepository;
     private final DistributionRepository distributionRepository;
-    private final GeoRepository geoRepository;
-    private final VerticalRepository verticalRepository;
     private final UserRepository userRepository;
     private final PartnerService partnerService;
-    private final CurrentUserService currentUserService;
-
-    // =========================
-    // GEO
-    // =========================
-
-    @Transactional
-    public Geo createGeo(CreateGeoRequest request) {
-
-        String code = request.getCode().trim().toUpperCase();
-
-        if (geoRepository.findByCodeIgnoreCase(code).isPresent()) {
-            throw new IllegalArgumentException(
-                    "A GEO already exists with code: " + code
-            );
-        }
-
-        Geo geo = new Geo();
-
-        geo.setCode(code);
-        geo.setName(request.getName().trim());
-        geo.setType(request.getType());
-        geo.setRegion(blankToNull(request.getRegion()));
-
-        return geoRepository.save(geo);
-    }
-
-    @Transactional(readOnly = true)
-    public List<Geo> getAllGeos() {
-        return geoRepository.findAll();
-    }
-
-    // =========================
-    // VERTICAL
-    // =========================
-
-    @Transactional
-    public Vertical createVertical(CreateVerticalRequest request) {
-
-        String name = request.getName().trim();
-
-        if (verticalRepository.findByNameIgnoreCase(name).isPresent()) {
-            throw new IllegalArgumentException(
-                    "A vertical already exists with name: " + name
-            );
-        }
-
-        Vertical vertical = new Vertical();
-        vertical.setName(name);
-
-        return verticalRepository.save(vertical);
-    }
-
-    @Transactional(readOnly = true)
-    public List<Vertical> getAllVerticals() {
-        return verticalRepository.findAll();
-    }
 
     // =========================
     // CREATE CAMPAIGN
@@ -123,7 +61,7 @@ public class CampaignService {
 
     @Transactional(readOnly = true)
     public CampaignResponse getCampaignById(Long id) {
-        return toCampaignResponse(findCampaignById(id));
+        return toCampaignResponse(campaignRepository.getOrThrow(id));
     }
 
     // =========================
@@ -133,7 +71,8 @@ public class CampaignService {
     @Transactional
     public CampaignResponse updateCampaign(Long id, CampaignRequest request) {
 
-        Campaign campaign = findCampaignById(id);
+        Campaign campaign = campaignRepository.getOrThrow(id);
+        campaign.checkVersion(request.getVersion(), "This campaign");
 
         String currency = normalizeCurrency(request.getCurrency());
 
@@ -141,7 +80,7 @@ public class CampaignService {
         if (!currency.equals(campaign.getCurrency())) {
 
             if (campaignMonthRepository.existsByCampaignId(id) || distributionRepository.existsByCampaignId(id)) {
-                throw new IllegalArgumentException(
+                throw new ConflictException(
                         "Currency cannot be changed after the campaign has distributions or monthly revenue"
                 );
             }
@@ -161,11 +100,11 @@ public class CampaignService {
     @Transactional
     public void deleteCampaign(Long id) {
 
-        Campaign campaign = findCampaignById(id);
+        Campaign campaign = campaignRepository.getOrThrow(id);
 
         // Protect finance history: a campaign with money or distributions is archived, not deleted
         if (distributionRepository.existsByCampaignId(id) || campaignMonthRepository.existsByCampaignId(id)) {
-            throw new IllegalArgumentException(
+            throw new ConflictException(
                     "Campaign has distributions or monthly revenue. Set its status to "
                             + CampaignStatus.ARCHIVED + " instead of deleting it"
             );
@@ -181,7 +120,7 @@ public class CampaignService {
     @Transactional(readOnly = true)
     public List<CampaignMonthResponse> getMonths(Long campaignId) {
 
-        findCampaignById(campaignId);
+        campaignRepository.getOrThrow(campaignId);
 
         return campaignMonthRepository.findByCampaignIdOrderByMonthAsc(campaignId)
                 .stream()
@@ -193,7 +132,7 @@ public class CampaignService {
     @Transactional
     public CampaignMonthResponse saveMonth(Long campaignId, YearMonth month, CampaignMonthRequest request) {
 
-        Campaign campaign = findCampaignById(campaignId);
+        Campaign campaign = campaignRepository.getOrThrow(campaignId);
         LocalDate monthStart = month.atDay(1);
 
         CampaignMonth entry = campaignMonthRepository
@@ -205,10 +144,13 @@ public class CampaignService {
                     return created;
                 });
 
+        if (entry.getId() != null) {
+            entry.checkVersion(request.getVersion(), month + " revenue");
+        }
+
         entry.setEvents(request.getEvents() != null ? request.getEvents() : 0);
         entry.setRevenue(request.getRevenue());
         entry.setNotes(blankToNull(request.getNotes()));
-        entry.setUpdatedBy(currentUserService.currentUser());
 
         return toMonthResponse(campaignMonthRepository.save(entry));
     }
@@ -219,7 +161,7 @@ public class CampaignService {
         CampaignMonth entry = campaignMonthRepository
                 .findByCampaignIdAndMonth(campaignId, month.atDay(1))
                 .orElseThrow(() ->
-                        new IllegalArgumentException(
+                        new NotFoundException(
                                 "No revenue entry for " + month + " on campaign " + campaignId
                         )
                 );
@@ -240,7 +182,7 @@ public class CampaignService {
         campaign.setAdvertiser(request.getAdvertiserId() != null ? findAdvertiser(request.getAdvertiserId()) : null);
         campaign.setPayout(request.getPayout());
         campaign.setStatus(request.getStatus());
-        campaign.setManager(request.getManagerId() != null ? findUserById(request.getManagerId()) : null);
+        campaign.setManager(request.getManagerId() != null ? userRepository.getOrThrow(request.getManagerId()) : null);
         campaign.setStartDate(request.getStartDate());
         campaign.setEndDate(request.getEndDate());
         campaign.setNotes(blankToNull(request.getNotes()));
@@ -254,16 +196,6 @@ public class CampaignService {
         validateDateRange(campaign.getStartDate(), campaign.getEndDate());
     }
 
-    private Campaign findCampaignById(Long id) {
-
-        return campaignRepository.findById(id)
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Campaign not found with id: " + id
-                        )
-                );
-    }
-
     private Partner findAdvertiser(Long partnerId) {
 
         Partner partner = partnerService.findPartnerById(partnerId);
@@ -275,16 +207,6 @@ public class CampaignService {
         }
 
         return partner;
-    }
-
-    private User findUserById(Long id) {
-
-        return userRepository.findById(id)
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "User not found with id: " + id
-                        )
-                );
     }
 
     private CampaignResponse toCampaignResponse(Campaign campaign) {
@@ -315,6 +237,8 @@ public class CampaignService {
         response.setNotes(campaign.getNotes());
         response.setCreatedAt(campaign.getCreatedAt());
         response.setUpdatedAt(campaign.getUpdatedAt());
+        response.setUpdatedByName(campaign.getUpdatedBy() != null ? campaign.getUpdatedBy().getName() : null);
+        response.setVersion(campaign.getVersion());
 
         return response;
     }
@@ -331,11 +255,9 @@ public class CampaignService {
         response.setCurrency(entry.getCampaign().getCurrency());
         response.setNotes(entry.getNotes());
 
-        if (entry.getUpdatedBy() != null) {
-            response.setUpdatedByName(entry.getUpdatedBy().getName());
-        }
-
+        response.setUpdatedByName(entry.getUpdatedBy() != null ? entry.getUpdatedBy().getName() : null);
         response.setUpdatedAt(entry.getUpdatedAt());
+        response.setVersion(entry.getVersion());
 
         return response;
     }

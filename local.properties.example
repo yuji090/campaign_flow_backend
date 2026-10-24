@@ -4,3 +4,5 @@ DB_USERNAME=root
 DB_PASSWORD=change-me
 # At least 32 characters. Generate one with: openssl rand -base64 48
 JWT_SECRET=change-me-to-a-long-random-secret
+# Password for the first admin (only used when the users table is empty)
+ADMIN_PASSWORD=change-me

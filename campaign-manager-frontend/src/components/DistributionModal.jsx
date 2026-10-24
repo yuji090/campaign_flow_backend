@@ -62,6 +62,7 @@ export default function DistributionModal({ campaign, distribution, onClose, onS
       startDate: form.startDate || null,
       endDate: form.endDate || null,
       notes: form.notes,
+      version: distribution?.version,
     }
 
     setSaving(true)

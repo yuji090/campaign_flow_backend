@@ -1,22 +1,17 @@
 package com.thedigitalsole.campaignmanager.model.user;
 
+import com.thedigitalsole.campaignmanager.model.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
 @Getter
 @Setter
 @NoArgsConstructor
-public class User {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class User extends BaseEntity {
 
     @Column(nullable = false)
     private String name;
@@ -33,19 +28,4 @@ public class User {
 
     @Column(nullable = false)
     private boolean enabled = true;
-
-    private LocalDateTime createdAt;
-
-    private LocalDateTime updatedAt;
-
-    @PrePersist
-    void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = createdAt;
-    }
-
-    @PreUpdate
-    void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
 }

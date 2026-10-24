@@ -33,6 +33,7 @@ export default function CampaignForm() {
 
   const [form, setForm] = useState(initialForm)
   const [originalName, setOriginalName] = useState('')
+  const [version, setVersion] = useState(null)
   const [advertisers, setAdvertisers] = useState([])
   const [users, setUsers] = useState([])
 
@@ -54,6 +55,7 @@ export default function CampaignForm() {
 
         if (campaign) {
           setOriginalName(campaign.name)
+          setVersion(campaign.version)
           setForm({
             name: campaign.name,
             pricingModel: campaign.pricingModel,
@@ -100,6 +102,7 @@ export default function CampaignForm() {
       startDate: form.startDate || null,
       endDate: form.endDate || null,
       notes: form.notes,
+      version,
     }
 
     setSaving(true)

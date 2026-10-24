@@ -1,6 +1,6 @@
 package com.thedigitalsole.campaignmanager.model.distribution;
 
-import com.thedigitalsole.campaignmanager.model.user.User;
+import com.thedigitalsole.campaignmanager.model.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -8,7 +8,6 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 /**
  * Publisher side of one distribution in one month: events they sent,
@@ -27,11 +26,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @NoArgsConstructor
-public class DistributionMonth {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class DistributionMonth extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "distribution_id", nullable = false)
@@ -55,23 +50,4 @@ public class DistributionMonth {
 
     @Column(length = 1000)
     private String notes;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "updated_by_id")
-    private User updatedBy;
-
-    private LocalDateTime createdAt;
-
-    private LocalDateTime updatedAt;
-
-    @PrePersist
-    void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = createdAt;
-    }
-
-    @PreUpdate
-    void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
 }

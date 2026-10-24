@@ -1,7 +1,7 @@
 package com.thedigitalsole.campaignmanager.service;
 
-import com.thedigitalsole.campaignmanager.model.user.User;
 import com.thedigitalsole.campaignmanager.repository.UserRepository;
+import com.thedigitalsole.campaignmanager.security.AppUserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -17,16 +17,10 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
 
-        User user = userRepository.findByEmail(email)
+        return userRepository.findByEmail(email)
+                .map(AppUserPrincipal::new)
                 .orElseThrow(() ->
                         new UsernameNotFoundException("User not found with email: " + email)
                 );
-
-        return org.springframework.security.core.userdetails.User
-                .withUsername(user.getEmail())
-                .password(user.getPassword())
-                .roles(user.getRole().name())
-                .disabled(!user.isEnabled())
-                .build();
     }
 }

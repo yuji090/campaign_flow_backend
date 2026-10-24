@@ -3,6 +3,8 @@ package com.thedigitalsole.campaignmanager.service;
 import com.thedigitalsole.campaignmanager.dto.user.CreateUserRequest;
 import com.thedigitalsole.campaignmanager.dto.user.UpdateUserRequest;
 import com.thedigitalsole.campaignmanager.dto.user.UserResponse;
+import com.thedigitalsole.campaignmanager.exception.ConflictException;
+import com.thedigitalsole.campaignmanager.exception.NotFoundException;
 import com.thedigitalsole.campaignmanager.model.user.Role;
 import com.thedigitalsole.campaignmanager.model.user.User;
 import com.thedigitalsole.campaignmanager.repository.UserRepository;
@@ -26,7 +28,7 @@ public class UserService {
         String email = request.getEmail().trim().toLowerCase();
 
         if (userRepository.findByEmail(email).isPresent()) {
-            throw new IllegalArgumentException("User already exists with email: " + email);
+            throw new ConflictException("User already exists with email: " + email);
         }
 
         User user = new User();
@@ -54,7 +56,7 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public UserResponse getUserById(Long id) {
-        return toResponse(findUserById(id));
+        return toResponse(userRepository.getOrThrow(id));
     }
 
     @Transactional(readOnly = true)
@@ -63,14 +65,15 @@ public class UserService {
         return userRepository.findByEmail(email)
                 .map(this::toResponse)
                 .orElseThrow(() ->
-                        new IllegalArgumentException("User not found with email: " + email)
+                        new NotFoundException("User not found with email: " + email)
                 );
     }
 
     @Transactional
     public UserResponse updateUser(Long id, UpdateUserRequest request) {
 
-        User user = findUserById(id);
+        User user = userRepository.getOrThrow(id);
+        user.checkVersion(request.getVersion(), "This user");
 
         if (request.getName() != null) {
             user.setName(request.getName().trim());
@@ -83,7 +86,7 @@ public class UserService {
             userRepository.findByEmail(email)
                     .filter(other -> !other.getId().equals(id))
                     .ifPresent(other -> {
-                        throw new IllegalArgumentException("User already exists with email: " + email);
+                        throw new ConflictException("User already exists with email: " + email);
                     });
 
             user.setEmail(email);
@@ -104,18 +107,10 @@ public class UserService {
         // Never leave the system without an admin who can log in
         if ((user.getRole() != Role.ADMIN || !user.isEnabled())
                 && userRepository.countByRoleAndEnabledTrueAndIdNot(Role.ADMIN, id) == 0) {
-            throw new IllegalArgumentException("At least one active admin is required");
+            throw new ConflictException("At least one active admin is required");
         }
 
         return toResponse(userRepository.save(user));
-    }
-
-    private User findUserById(Long id) {
-
-        return userRepository.findById(id)
-                .orElseThrow(() ->
-                        new IllegalArgumentException("User not found with id: " + id)
-                );
     }
 
     private UserResponse toResponse(User user) {
@@ -128,6 +123,7 @@ public class UserService {
         response.setRole(user.getRole());
         response.setEnabled(user.isEnabled());
         response.setCreatedAt(user.getCreatedAt());
+        response.setVersion(user.getVersion());
 
         return response;
     }

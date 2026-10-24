@@ -1,5 +1,6 @@
 package com.thedigitalsole.campaignmanager.model.distribution;
 
+import com.thedigitalsole.campaignmanager.model.BaseEntity;
 import com.thedigitalsole.campaignmanager.model.campaign.Campaign;
 import com.thedigitalsole.campaignmanager.model.partner.Partner;
 import com.thedigitalsole.campaignmanager.model.user.User;
@@ -10,7 +11,6 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 /**
  * A campaign given to a publisher partner. Money is not calculated here;
@@ -27,11 +27,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @NoArgsConstructor
-public class Distribution {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class Distribution extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "campaign_id", nullable = false)
@@ -67,19 +63,4 @@ public class Distribution {
 
     @Column(length = 1000)
     private String notes;
-
-    private LocalDateTime createdAt;
-
-    private LocalDateTime updatedAt;
-
-    @PrePersist
-    void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = createdAt;
-    }
-
-    @PreUpdate
-    void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
 }

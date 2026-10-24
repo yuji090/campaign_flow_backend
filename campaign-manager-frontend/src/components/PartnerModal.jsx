@@ -73,7 +73,7 @@ export default function PartnerModal({ partner, onClose, onSaved }) {
       website: form.website,
       notes: form.notes,
       employeeIds: form.employeeIds,
-      ...(editing && { active: form.active }),
+      ...(editing && { active: form.active, version: partner.version }),
     }
 
     setSaving(true)

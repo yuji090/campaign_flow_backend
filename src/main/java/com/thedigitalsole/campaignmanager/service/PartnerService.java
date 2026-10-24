@@ -3,6 +3,8 @@ package com.thedigitalsole.campaignmanager.service;
 import com.thedigitalsole.campaignmanager.dto.partner.CreatePartnerRequest;
 import com.thedigitalsole.campaignmanager.dto.partner.PartnerResponse;
 import com.thedigitalsole.campaignmanager.dto.partner.UpdatePartnerRequest;
+import com.thedigitalsole.campaignmanager.exception.ConflictException;
+import com.thedigitalsole.campaignmanager.exception.NotFoundException;
 import com.thedigitalsole.campaignmanager.model.partner.Partner;
 import com.thedigitalsole.campaignmanager.model.partner.PartnerRole;
 import com.thedigitalsole.campaignmanager.model.user.User;
@@ -34,7 +36,7 @@ public class PartnerService {
         String companyName = request.getCompanyName().trim();
 
         if (partnerRepository.existsByCompanyNameIgnoreCase(companyName)) {
-            throw new IllegalArgumentException(
+            throw new ConflictException(
                     "A partner already exists with name: " + companyName
             );
         }
@@ -94,13 +96,14 @@ public class PartnerService {
     public PartnerResponse updatePartner(Long id, UpdatePartnerRequest request) {
 
         Partner partner = findPartnerById(id);
+        partner.checkVersion(request.getVersion(), "This partner");
 
         if (request.getCompanyName() != null) {
 
             String companyName = request.getCompanyName().trim();
 
             if (partnerRepository.existsByCompanyNameIgnoreCaseAndIdNot(companyName, id)) {
-                throw new IllegalArgumentException(
+                throw new ConflictException(
                         "A partner already exists with name: " + companyName
                 );
             }
@@ -176,13 +179,7 @@ public class PartnerService {
     // =========================
 
     public Partner findPartnerById(Long id) {
-
-        return partnerRepository.findById(id)
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Partner not found with id: " + id
-                        )
-                );
+        return partnerRepository.getOrThrow(id);
     }
 
     private Set<User> findUsersByIds(Set<Long> ids) {
@@ -190,7 +187,7 @@ public class PartnerService {
         List<User> users = userRepository.findAllById(ids);
 
         if (users.size() != ids.size()) {
-            throw new IllegalArgumentException("One or more employees were not found");
+            throw new NotFoundException("One or more employees were not found");
         }
 
         return new HashSet<>(users);
@@ -233,6 +230,8 @@ public class PartnerService {
         response.setActive(partner.isActive());
         response.setCreatedAt(partner.getCreatedAt());
         response.setUpdatedAt(partner.getUpdatedAt());
+        response.setUpdatedByName(partner.getUpdatedBy() != null ? partner.getUpdatedBy().getName() : null);
+        response.setVersion(partner.getVersion());
 
         return response;
     }

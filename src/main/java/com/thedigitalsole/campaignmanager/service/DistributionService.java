@@ -1,12 +1,13 @@
 package com.thedigitalsole.campaignmanager.service;
 
 import com.thedigitalsole.campaignmanager.dto.distribution.*;
+import com.thedigitalsole.campaignmanager.exception.ConflictException;
+import com.thedigitalsole.campaignmanager.exception.NotFoundException;
 import com.thedigitalsole.campaignmanager.model.campaign.Campaign;
 import com.thedigitalsole.campaignmanager.model.distribution.Distribution;
 import com.thedigitalsole.campaignmanager.model.distribution.DistributionMonth;
 import com.thedigitalsole.campaignmanager.model.distribution.DistributionStatus;
 import com.thedigitalsole.campaignmanager.model.partner.Partner;
-import com.thedigitalsole.campaignmanager.model.user.User;
 import com.thedigitalsole.campaignmanager.repository.CampaignRepository;
 import com.thedigitalsole.campaignmanager.repository.DistributionMonthRepository;
 import com.thedigitalsole.campaignmanager.repository.DistributionRepository;
@@ -29,7 +30,6 @@ public class DistributionService {
     private final CampaignRepository campaignRepository;
     private final UserRepository userRepository;
     private final PartnerService partnerService;
-    private final CurrentUserService currentUserService;
 
     // =========================
     // CREATE
@@ -38,7 +38,7 @@ public class DistributionService {
     @Transactional
     public DistributionResponse createDistribution(CreateDistributionRequest request) {
 
-        Campaign campaign = findCampaignById(request.getCampaignId());
+        Campaign campaign = campaignRepository.getOrThrow(request.getCampaignId());
 
         Distribution distribution = new Distribution();
 
@@ -77,7 +77,7 @@ public class DistributionService {
 
     @Transactional(readOnly = true)
     public DistributionResponse getDistributionById(Long id) {
-        return toResponse(findDistributionById(id));
+        return toResponse(distributionRepository.getOrThrow(id));
     }
 
     // =========================
@@ -87,13 +87,14 @@ public class DistributionService {
     @Transactional
     public DistributionResponse updateDistribution(Long id, DistributionRequest request) {
 
-        Distribution distribution = findDistributionById(id);
+        Distribution distribution = distributionRepository.getOrThrow(id);
+        distribution.checkVersion(request.getVersion(), "This distribution");
 
         // Moving entered months to another publisher would rewrite who we owe money to
         boolean publisherChanged = !distribution.getPublisher().getId().equals(request.getPublisherId());
 
         if (publisherChanged && monthRepository.existsByDistributionId(id)) {
-            throw new IllegalArgumentException(
+            throw new ConflictException(
                     "This distribution already has monthly data, so its publisher cannot be changed. "
                             + "Create a new distribution for the other publisher instead"
             );
@@ -111,11 +112,11 @@ public class DistributionService {
     @Transactional
     public void deleteDistribution(Long id) {
 
-        Distribution distribution = findDistributionById(id);
+        Distribution distribution = distributionRepository.getOrThrow(id);
 
         // Protect finance history: a distribution with monthly data is closed, not deleted
         if (monthRepository.existsByDistributionId(id)) {
-            throw new IllegalArgumentException(
+            throw new ConflictException(
                     "Distribution has monthly data. Set its status to "
                             + DistributionStatus.COMPLETED + " instead of deleting it"
             );
@@ -131,7 +132,7 @@ public class DistributionService {
     @Transactional(readOnly = true)
     public List<MonthEntryResponse> getMonths(Long distributionId) {
 
-        findDistributionById(distributionId);
+        distributionRepository.getOrThrow(distributionId);
 
         return monthRepository.findByDistributionIdOrderByMonthAsc(distributionId)
                 .stream()
@@ -151,7 +152,7 @@ public class DistributionService {
             throw new IllegalArgumentException("Payable events cannot be more than total events");
         }
 
-        Distribution distribution = findDistributionById(distributionId);
+        Distribution distribution = distributionRepository.getOrThrow(distributionId);
         LocalDate monthStart = month.atDay(1);
 
         DistributionMonth entry = monthRepository
@@ -163,11 +164,14 @@ public class DistributionService {
                     return created;
                 });
 
+        if (entry.getId() != null) {
+            entry.checkVersion(request.getVersion(), month + " for this distribution");
+        }
+
         entry.setTotalEvents(request.getTotalEvents());
         entry.setPayableEvents(request.getPayableEvents());
         entry.setPayout(request.getPayout());
         entry.setNotes(blankToNull(request.getNotes()));
-        entry.setUpdatedBy(currentUserService.currentUser());
 
         return toMonthResponse(monthRepository.save(entry));
     }
@@ -178,7 +182,7 @@ public class DistributionService {
         DistributionMonth entry = monthRepository
                 .findByDistributionIdAndMonth(distributionId, month.atDay(1))
                 .orElseThrow(() ->
-                        new IllegalArgumentException(
+                        new NotFoundException(
                                 "No entry for " + month + " on distribution " + distributionId
                         )
                 );
@@ -204,7 +208,7 @@ public class DistributionService {
 
         distribution.setPublisher(publisher);
         distribution.setLabel(blankToNull(request.getLabel()));
-        distribution.setManager(request.getManagerId() != null ? findUserById(request.getManagerId()) : null);
+        distribution.setManager(request.getManagerId() != null ? userRepository.getOrThrow(request.getManagerId()) : null);
         distribution.setPayout(request.getPayout());
 
         if (request.getStatus() != null) {
@@ -218,26 +222,6 @@ public class DistributionService {
         validateDateRange(distribution.getStartDate(), distribution.getEndDate());
     }
 
-    private Distribution findDistributionById(Long id) {
-
-        return distributionRepository.findById(id)
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Distribution not found with id: " + id
-                        )
-                );
-    }
-
-    private Campaign findCampaignById(Long id) {
-
-        return campaignRepository.findById(id)
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Campaign not found with id: " + id
-                        )
-                );
-    }
-
     private Partner findPublisher(Long partnerId) {
 
         Partner partner = partnerService.findPartnerById(partnerId);
@@ -249,16 +233,6 @@ public class DistributionService {
         }
 
         return partner;
-    }
-
-    private User findUserById(Long id) {
-
-        return userRepository.findById(id)
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "User not found with id: " + id
-                        )
-                );
     }
 
     private DistributionResponse toResponse(Distribution distribution) {
@@ -285,6 +259,8 @@ public class DistributionService {
         response.setNotes(distribution.getNotes());
         response.setCreatedAt(distribution.getCreatedAt());
         response.setUpdatedAt(distribution.getUpdatedAt());
+        response.setUpdatedByName(distribution.getUpdatedBy() != null ? distribution.getUpdatedBy().getName() : null);
+        response.setVersion(distribution.getVersion());
 
         return response;
     }
@@ -302,12 +278,9 @@ public class DistributionService {
         response.setPayout(entry.getPayout());
         response.setCurrency(entry.getDistribution().getCurrency());
         response.setNotes(entry.getNotes());
-
-        if (entry.getUpdatedBy() != null) {
-            response.setUpdatedByName(entry.getUpdatedBy().getName());
-        }
-
+        response.setUpdatedByName(entry.getUpdatedBy() != null ? entry.getUpdatedBy().getName() : null);
         response.setUpdatedAt(entry.getUpdatedAt());
+        response.setVersion(entry.getVersion());
 
         return response;
     }
