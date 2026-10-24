@@ -26,6 +26,7 @@ public interface DistributionMonthRepository
             select m from DistributionMonth m
             join fetch m.distribution d
             join fetch d.campaign c
+            join fetch d.publisher
             where m.month between :from and :to
             """)
     List<DistributionMonth> findAllInRange(

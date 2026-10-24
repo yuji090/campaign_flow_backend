@@ -16,7 +16,9 @@ public record CompanySummaryResponse(
         YearMonth to,
         List<Total> totals,
         List<MonthRow> months,
-        List<CampaignRow> campaigns
+        List<CampaignRow> campaigns,
+        // Per partner: revenue from campaigns they gave us vs payout on distributions they run
+        List<PartnerBalance> partners
 ) {
 
     public record Total(
@@ -37,6 +39,16 @@ public record CompanySummaryResponse(
             BigDecimal marginPct,
             // Campaigns with payout this month but no revenue entered, so profit is understated
             int campaignsMissingRevenue
+    ) {
+    }
+
+    public record PartnerBalance(
+            Long partnerId,
+            String partnerName,
+            String currency,
+            BigDecimal receivable,
+            BigDecimal payable,
+            BigDecimal net
     ) {
     }
 

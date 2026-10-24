@@ -132,7 +132,7 @@ export function Card({ eyebrow, title, description, actions, children, className
                 {eyebrow}
               </div>
             )}
-            {title && <h3 className="m-0 text-[15px]">{title}</h3>}
+            {title && <h3 className="m-0 text-[15px] font-bold">{title}</h3>}
             {description && (
               <p className="text-[#667085] text-xs leading-[1.55] mt-[6px] mb-0">{description}</p>
             )}
@@ -324,7 +324,7 @@ export function Modal({ title, description, onClose, children, footer, wide = fa
       <div className={`w-full ${wide ? 'max-w-[760px]' : 'max-w-[520px]'} bg-white rounded-[11px] shadow-xl my-8`}>
         <div className="flex justify-between items-start gap-4 p-[23px] pb-0">
           <div>
-            <h3 className="m-0 text-[17px]">{title}</h3>
+            <h3 className="m-0 text-[17px] font-bold">{title}</h3>
             {description && <p className="text-[#667085] text-xs mt-[6px] mb-0">{description}</p>}
           </div>
           <button

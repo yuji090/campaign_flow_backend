@@ -76,6 +76,15 @@ export default function PeriodPicker({ value, onChange }) {
   )
 }
 
+// Just the ‹ Oct 2026 › control, for pages that always show one month
+export function MonthPicker({ value, onChange }) {
+  return (
+    <Stepper onPrev={() => onChange(addMonths(value, -1))} onNext={() => onChange(addMonths(value, 1))}>
+      <MonthDropdown value={value} onChange={onChange} />
+    </Stepper>
+  )
+}
+
 function Stepper({ onPrev, onNext, children }) {
   const arrow =
     'w-8 h-full border-0 bg-transparent cursor-pointer text-[#667085] text-[15px] hover:text-[#3563e9] hover:bg-[#f5f7ff] transition'

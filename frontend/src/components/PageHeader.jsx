@@ -65,7 +65,7 @@ export default function PageHeader({ eyebrow, crumbs = [], back, title, badges, 
           )}
 
           <div className="flex items-center gap-[10px] flex-wrap">
-            <h1 className="m-0 tracking-[-.6px] text-[26px] leading-tight">{title}</h1>
+            <h1 className="m-0 tracking-[-.6px] text-[26px] leading-tight font-extrabold">{title}</h1>
             {badges}
           </div>
 

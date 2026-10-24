@@ -57,6 +57,10 @@ public class FinanceService {
         Map<Long, Sums> byCampaign = new HashMap<>();
         Map<Long, Campaign> campaigns = new HashMap<>();
 
+        // Per partner + currency: receivable (as advertiser) and payable (as publisher)
+        Map<String, Sums> byPartner = new HashMap<>();
+        Map<Long, String> partnerNames = new HashMap<>();
+
         // Per month + currency: campaigns with revenue entered, and campaigns with payout
         Map<String, Set<Long>> withRevenue = new HashMap<>();
         Map<String, Set<Long>> withCost = new HashMap<>();
@@ -70,6 +74,12 @@ public class FinanceService {
 
             sums(byMonth, monthKey(m.getMonth(), campaign.getCurrency())).addRevenue(m.getRevenue());
             sums(byCampaign, campaign.getId()).addRevenue(m.getRevenue());
+
+            if (campaign.getAdvertiser() != null) {
+                Partner advertiser = campaign.getAdvertiser();
+                partnerNames.putIfAbsent(advertiser.getId(), advertiser.getCompanyName());
+                sums(byPartner, advertiser.getId() + "|" + campaign.getCurrency()).addRevenue(m.getRevenue());
+            }
         }
 
         for (DistributionMonth m : distributionMonthRepository.findAllInRange(range.from(), range.to())) {
@@ -81,6 +91,10 @@ public class FinanceService {
 
             sums(byMonth, monthKey(m.getMonth(), m.getDistribution().getCurrency())).addCost(m.getPayout());
             sums(byCampaign, campaign.getId()).addCost(m.getPayout());
+
+            Partner publisher = m.getDistribution().getPublisher();
+            partnerNames.putIfAbsent(publisher.getId(), publisher.getCompanyName());
+            sums(byPartner, publisher.getId() + "|" + m.getDistribution().getCurrency()).addCost(m.getPayout());
         }
 
         List<CompanySummaryResponse.MonthRow> months = byMonth.entrySet().stream()
@@ -117,7 +131,19 @@ public class FinanceService {
                         e.getKey(), e.getValue().revenue, e.getValue().cost, e.getValue().profit(), margin(e.getValue())))
                 .toList();
 
-        return new CompanySummaryResponse(from, to, totals, months, campaignRows);
+        // Biggest balances first, whichever direction they go
+        List<CompanySummaryResponse.PartnerBalance> partnerRows = byPartner.entrySet().stream()
+                .map(e -> {
+                    Long partnerId = Long.valueOf(e.getKey().substring(0, e.getKey().indexOf('|')));
+                    Sums s = e.getValue();
+                    return new CompanySummaryResponse.PartnerBalance(
+                            partnerId, partnerNames.get(partnerId), currencyOf(e.getKey()),
+                            s.revenue, s.cost, s.profit());
+                })
+                .sorted(Comparator.comparing((CompanySummaryResponse.PartnerBalance p) -> p.net().abs()).reversed())
+                .toList();
+
+        return new CompanySummaryResponse(from, to, totals, months, campaignRows, partnerRows);
     }
 
     // =========================
