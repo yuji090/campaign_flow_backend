@@ -32,6 +32,24 @@ npm run dev
 
 The app runs on http://localhost:5173 and talks to the backend at `VITE_API_URL` (default `http://localhost:8080`).
 
+## How the money works
+
+| Where | What is entered |
+|---|---|
+| Campaign → month | Advertiser's revenue (+ optional signed **adjustment** for clawbacks/bonuses, with a reason) and approved events |
+| Distribution → month | Publisher's total and payable events, payout (pre-filled as payable × rate), optional advertiser-approved events, optional adjustment |
+| Partner / Payments | Money **received** from advertisers and **paid** to publishers, with deductions (TDS, fees), or a **write-off** to clear a balance |
+| Month close (admin) | Locks a month's revenue, payouts and exchange rates; corrections then go in as adjustments in an open month |
+
+- Profit = revenue − payout, always calculated live, never stored.
+- Partner balance = all billed − payments − write-offs, per currency.
+- A campaign's advertiser, direct flag and currency are fixed once it has revenue or distributions.
+  A new agency means a new campaign.
+- Estimated revenue per distribution splits each month's campaign revenue by advertiser-approved events
+  (when every publisher has them) or payable events. Months without revenue are left out.
+- Every change to money is kept in the history (old → new, who, when).
+- Company totals in several currencies are added up in `BASE_CURRENCY` using the monthly rates.
+
 ## Database changes
 
 Never edit an existing migration. Add a new file in `backend/src/main/resources/db/migration`,

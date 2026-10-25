@@ -47,5 +47,8 @@ public class CampaignResponse {
 
     private String updatedByName;
 
+    // true once the campaign has revenue or distributions: advertiser, direct and currency are then fixed
+    private boolean locked;
+
     private Long version;
 }

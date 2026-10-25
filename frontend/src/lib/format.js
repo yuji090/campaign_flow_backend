@@ -41,6 +41,12 @@ export function currentMonth() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
+// Local date as 'YYYY-MM-DD' (toISOString would give the UTC day)
+export function todayIso() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+}
+
 export function clean(value) {
   if (typeof value !== 'string') return value ?? null
   return value.trim() || null

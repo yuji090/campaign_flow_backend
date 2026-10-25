@@ -11,7 +11,7 @@ import java.time.LocalDate;
 
 /**
  * Advertiser side of one campaign in one month: the revenue the advertiser pays us,
- * entered by hand. Amounts are in the campaign's currency.
+ * entered by hand, plus an optional signed adjustment. Amounts are in the campaign's currency.
  */
 @Entity
 @Table(
@@ -42,6 +42,18 @@ public class CampaignMonth extends BaseEntity {
     @Column(nullable = false, precision = 14, scale = 4)
     private BigDecimal revenue = BigDecimal.ZERO;
 
+    // Signed correction booked in this month, e.g. -800 for a clawback of last month's fraud
+    @Column(nullable = false, precision = 14, scale = 4)
+    private BigDecimal adjustment = BigDecimal.ZERO;
+
+    @Column(length = 500)
+    private String adjustmentNote;
+
     @Column(length = 1000)
     private String notes;
+
+    // What counts in every report: revenue plus adjustment
+    public BigDecimal netRevenue() {
+        return revenue.add(adjustment);
+    }
 }

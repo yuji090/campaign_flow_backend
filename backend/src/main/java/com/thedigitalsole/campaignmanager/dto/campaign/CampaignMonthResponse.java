@@ -21,6 +21,16 @@ public class CampaignMonthResponse {
 
     private BigDecimal revenue;
 
+    private BigDecimal adjustment;
+
+    private String adjustmentNote;
+
+    // revenue + adjustment: what counts in reports
+    private BigDecimal netRevenue;
+
+    // A closed month cannot be edited until an admin reopens it
+    private boolean closed;
+
     private String currency;
 
     private String notes;

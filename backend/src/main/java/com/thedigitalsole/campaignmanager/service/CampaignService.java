@@ -15,9 +15,16 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+
+import static com.thedigitalsole.campaignmanager.service.ChangeLogService.Diff;
+import static com.thedigitalsole.campaignmanager.service.ChangeLogService.entry;
+import static com.thedigitalsole.campaignmanager.service.ChangeLogService.monthLabel;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +37,8 @@ public class CampaignService {
     private final DistributionRepository distributionRepository;
     private final UserRepository userRepository;
     private final PartnerService partnerService;
+    private final PeriodService periodService;
+    private final ChangeLogService changeLogService;
 
     // =========================
     // CREATE CAMPAIGN
@@ -41,9 +50,10 @@ public class CampaignService {
         Campaign campaign = new Campaign();
 
         campaign.setCurrency(normalizeCurrency(request.getCurrency()));
+        applyAdvertiser(campaign, request);
         applyRequest(campaign, request);
 
-        return toCampaignResponse(campaignRepository.save(campaign));
+        return toCampaignResponse(campaignRepository.save(campaign), false);
     }
 
     // =========================
@@ -53,15 +63,18 @@ public class CampaignService {
     @Transactional(readOnly = true)
     public List<CampaignResponse> getAllCampaigns() {
 
+        Set<Long> withMonths = campaignMonthRepository.findCampaignIdsWithMonths();
+        Set<Long> withDistributions = distributionRepository.findCampaignIdsWithDistributions();
+
         return campaignRepository.findAll()
                 .stream()
-                .map(this::toCampaignResponse)
+                .map(c -> toCampaignResponse(c, withMonths.contains(c.getId()) || withDistributions.contains(c.getId())))
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public CampaignResponse getCampaignById(Long id) {
-        return toCampaignResponse(campaignRepository.getOrThrow(id));
+        return toCampaignResponse(campaignRepository.getOrThrow(id), hasHistory(id));
     }
 
     // =========================
@@ -74,23 +87,45 @@ public class CampaignService {
         Campaign campaign = campaignRepository.getOrThrow(id);
         campaign.checkVersion(request.getVersion(), "This campaign");
 
+        boolean locked = hasHistory(id);
         String currency = normalizeCurrency(request.getCurrency());
 
-        // All money in a campaign shares one currency, so it is fixed once money or distributions exist
-        if (!currency.equals(campaign.getCurrency())) {
+        // All money in a campaign shares one currency, and belongs to one advertiser.
+        // Both are fixed once money or distributions exist; a new agency means a new campaign.
+        if (locked) {
 
-            if (campaignMonthRepository.existsByCampaignId(id) || distributionRepository.existsByCampaignId(id)) {
+            if (!currency.equals(campaign.getCurrency())) {
                 throw new ConflictException(
                         "Currency cannot be changed after the campaign has distributions or monthly revenue"
                 );
             }
 
+            Long advertiserBefore = campaign.getAdvertiser() != null ? campaign.getAdvertiser().getId() : null;
+            Long advertiserAfter = request.isDirect() ? null : request.getAdvertiserId();
+
+            if (campaign.isDirect() != request.isDirect() || !Objects.equals(advertiserBefore, advertiserAfter)) {
+                throw new ConflictException(
+                        "The advertiser cannot be changed after the campaign has distributions or monthly revenue. "
+                                + "If the campaign now comes from someone else, create a new campaign"
+                );
+            }
+        } else {
             campaign.setCurrency(currency);
+            applyAdvertiser(campaign, request);
         }
+
+        BigDecimal payoutBefore = campaign.getPayout();
 
         applyRequest(campaign, request);
 
-        return toCampaignResponse(campaignRepository.save(campaign));
+        Campaign saved = campaignRepository.save(campaign);
+
+        changeLogService.record(entry("CAMPAIGN", saved.getId(), "UPDATE")
+                .campaign(saved.getId())
+                .partner(saved.getAdvertiser() != null ? saved.getAdvertiser().getId() : null)
+                .summary(new Diff().change("payout", payoutBefore, saved.getPayout()).join("Campaign ")));
+
+        return toCampaignResponse(saved, locked);
     }
 
     // =========================
@@ -122,9 +157,11 @@ public class CampaignService {
 
         campaignRepository.getOrThrow(campaignId);
 
+        Set<YearMonth> closed = periodService.getClosedMonthSet();
+
         return campaignMonthRepository.findByCampaignIdOrderByMonthAsc(campaignId)
                 .stream()
-                .map(this::toMonthResponse)
+                .map(m -> toMonthResponse(m, closed.contains(YearMonth.from(m.getMonth()))))
                 .toList();
     }
 
@@ -133,7 +170,19 @@ public class CampaignService {
     public CampaignMonthResponse saveMonth(Long campaignId, YearMonth month, CampaignMonthRequest request) {
 
         Campaign campaign = campaignRepository.getOrThrow(campaignId);
+        periodService.assertEditable(month);
+
         LocalDate monthStart = month.atDay(1);
+        BigDecimal adjustment = request.getAdjustment() != null ? request.getAdjustment() : BigDecimal.ZERO;
+        String adjustmentNote = blankToNull(request.getAdjustmentNote());
+
+        if (adjustment.signum() != 0 && adjustmentNote == null) {
+            throw new IllegalArgumentException("Add a reason for the adjustment, e.g. \"Sep fraud clawback\"");
+        }
+
+        if (request.getRevenue().add(adjustment).signum() < 0) {
+            throw new IllegalArgumentException("Revenue plus adjustment cannot be below zero");
+        }
 
         CampaignMonth entry = campaignMonthRepository
                 .findByCampaignIdAndMonth(campaignId, monthStart)
@@ -144,15 +193,36 @@ public class CampaignService {
                     return created;
                 });
 
-        if (entry.getId() != null) {
+        boolean isNew = entry.getId() == null;
+
+        if (!isNew) {
             entry.checkVersion(request.getVersion(), month + " revenue");
         }
 
-        entry.setEvents(request.getEvents() != null ? request.getEvents() : 0);
+        long events = request.getEvents() != null ? request.getEvents() : 0L;
+
+        Diff diff = isNew
+                ? new Diff().value("revenue", request.getRevenue()).value("adjustment", adjustment).value("approved events", events)
+                : new Diff()
+                        .change("revenue", entry.getRevenue(), request.getRevenue())
+                        .change("adjustment", entry.getAdjustment(), adjustment)
+                        .change("approved events", entry.getEvents(), events);
+
+        entry.setEvents(events);
         entry.setRevenue(request.getRevenue());
+        entry.setAdjustment(adjustment);
+        entry.setAdjustmentNote(adjustment.signum() != 0 ? adjustmentNote : null);
         entry.setNotes(blankToNull(request.getNotes()));
 
-        return toMonthResponse(campaignMonthRepository.save(entry));
+        CampaignMonth saved = campaignMonthRepository.save(entry);
+
+        changeLogService.record(entry("CAMPAIGN_MONTH", saved.getId(), isNew ? "CREATE" : "UPDATE")
+                .campaign(campaignId)
+                .partner(campaign.getAdvertiser() != null ? campaign.getAdvertiser().getId() : null)
+                .month(monthStart)
+                .summary(withNote(diff.join(monthLabel(month) + " " + (isNew ? "added" : "edited") + ": "), saved.getAdjustmentNote())));
+
+        return toMonthResponse(saved, false);
     }
 
     @Transactional
@@ -166,6 +236,19 @@ public class CampaignService {
                         )
                 );
 
+        periodService.assertOpen(month);
+
+        Campaign campaign = entry.getCampaign();
+
+        changeLogService.record(entry("CAMPAIGN_MONTH", entry.getId(), "DELETE")
+                .campaign(campaignId)
+                .partner(campaign.getAdvertiser() != null ? campaign.getAdvertiser().getId() : null)
+                .month(entry.getMonth())
+                .summary(new Diff()
+                        .value("revenue", entry.getRevenue())
+                        .value("adjustment", entry.getAdjustment())
+                        .join(monthLabel(month) + " deleted: ")));
+
         campaignMonthRepository.delete(entry);
     }
 
@@ -178,8 +261,6 @@ public class CampaignService {
 
         campaign.setName(request.getName().trim());
         campaign.setPricingModel(request.getPricingModel());
-        campaign.setDirect(request.isDirect());
-        campaign.setAdvertiser(request.getAdvertiserId() != null ? findAdvertiser(request.getAdvertiserId()) : null);
         campaign.setPayout(request.getPayout());
         campaign.setStatus(request.getStatus());
         campaign.setManager(request.getManagerId() != null ? userRepository.getOrThrow(request.getManagerId()) : null);
@@ -187,13 +268,29 @@ public class CampaignService {
         campaign.setEndDate(request.getEndDate());
         campaign.setNotes(blankToNull(request.getNotes()));
 
-        if (!campaign.isDirect() && campaign.getAdvertiser() == null) {
-            throw new IllegalArgumentException(
-                    "Advertiser is required when the campaign is not direct"
-            );
+        validateDateRange(campaign.getStartDate(), campaign.getEndDate());
+    }
+
+    // Direct campaigns have no advertiser; every other campaign needs one
+    private void applyAdvertiser(Campaign campaign, CampaignRequest request) {
+
+        campaign.setDirect(request.isDirect());
+
+        if (request.isDirect()) {
+            campaign.setAdvertiser(null);
+            return;
         }
 
-        validateDateRange(campaign.getStartDate(), campaign.getEndDate());
+        if (request.getAdvertiserId() == null) {
+            throw new IllegalArgumentException("Advertiser is required when the campaign is not direct");
+        }
+
+        campaign.setAdvertiser(findAdvertiser(request.getAdvertiserId()));
+    }
+
+    // Money or distributions exist, so advertiser, direct and currency are fixed
+    private boolean hasHistory(Long campaignId) {
+        return campaignMonthRepository.existsByCampaignId(campaignId) || distributionRepository.existsByCampaignId(campaignId);
     }
 
     private Partner findAdvertiser(Long partnerId) {
@@ -209,7 +306,7 @@ public class CampaignService {
         return partner;
     }
 
-    private CampaignResponse toCampaignResponse(Campaign campaign) {
+    private CampaignResponse toCampaignResponse(Campaign campaign, boolean locked) {
 
         CampaignResponse response = new CampaignResponse();
 
@@ -238,12 +335,13 @@ public class CampaignService {
         response.setCreatedAt(campaign.getCreatedAt());
         response.setUpdatedAt(campaign.getUpdatedAt());
         response.setUpdatedByName(campaign.getUpdatedBy() != null ? campaign.getUpdatedBy().getName() : null);
+        response.setLocked(locked);
         response.setVersion(campaign.getVersion());
 
         return response;
     }
 
-    private CampaignMonthResponse toMonthResponse(CampaignMonth entry) {
+    private CampaignMonthResponse toMonthResponse(CampaignMonth entry, boolean closed) {
 
         CampaignMonthResponse response = new CampaignMonthResponse();
 
@@ -252,6 +350,10 @@ public class CampaignService {
         response.setMonth(YearMonth.from(entry.getMonth()));
         response.setEvents(entry.getEvents());
         response.setRevenue(entry.getRevenue());
+        response.setAdjustment(entry.getAdjustment());
+        response.setAdjustmentNote(entry.getAdjustmentNote());
+        response.setNetRevenue(entry.netRevenue());
+        response.setClosed(closed);
         response.setCurrency(entry.getCampaign().getCurrency());
         response.setNotes(entry.getNotes());
 
@@ -279,6 +381,11 @@ public class CampaignService {
                     "End date cannot be before start date"
             );
         }
+    }
+
+    // Appends the adjustment reason to a history line, if there is a line at all
+    static String withNote(String summary, String note) {
+        return summary == null || note == null ? summary : summary + " (" + note + ")";
     }
 
     private String blankToNull(String value) {

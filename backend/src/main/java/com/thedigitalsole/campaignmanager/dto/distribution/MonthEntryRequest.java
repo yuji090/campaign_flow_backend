@@ -27,6 +27,17 @@ public class MonthEntryRequest {
     @PositiveOrZero
     private BigDecimal payout;
 
+    // Of this publisher's events, how many the advertiser approved (optional, cannot exceed total)
+    @PositiveOrZero
+    private Long approvedEvents;
+
+    // Signed correction booked in this month, e.g. -300 for a fraud deduction on last month
+    private BigDecimal adjustment;
+
+    // Required when the adjustment is not zero
+    @Size(max = 500)
+    private String adjustmentNote;
+
     @Size(max = 1000)
     private String notes;
 

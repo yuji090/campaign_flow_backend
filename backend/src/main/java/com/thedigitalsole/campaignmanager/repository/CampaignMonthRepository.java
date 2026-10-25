@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface CampaignMonthRepository
         extends JpaRepository<CampaignMonth, Long> {
@@ -17,6 +18,9 @@ public interface CampaignMonthRepository
     Optional<CampaignMonth> findByCampaignIdAndMonth(Long campaignId, LocalDate month);
 
     boolean existsByCampaignId(Long campaignId);
+
+    @Query("select distinct m.campaign.id from CampaignMonth m")
+    Set<Long> findCampaignIdsWithMonths();
 
     // Each query fetches the campaign too, so totals can be grouped without extra queries
 

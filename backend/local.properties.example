@@ -6,3 +6,5 @@ DB_PASSWORD=change-me
 JWT_SECRET=change-me-to-a-long-random-secret
 # Password for the first admin (only used when the users table is empty)
 ADMIN_PASSWORD=change-me
+# Company totals are converted into this currency with the monthly exchange rates (default USD)
+# BASE_CURRENCY=INR

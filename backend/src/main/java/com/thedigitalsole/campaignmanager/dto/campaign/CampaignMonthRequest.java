@@ -21,6 +21,13 @@ public class CampaignMonthRequest {
     @PositiveOrZero
     private BigDecimal revenue;
 
+    // Signed correction booked in this month, e.g. -800 for a clawback of last month's fraud
+    private BigDecimal adjustment;
+
+    // Required when the adjustment is not zero
+    @Size(max = 500)
+    private String adjustmentNote;
+
     @Size(max = 1000)
     private String notes;
 

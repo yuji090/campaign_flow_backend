@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../services/api'
 import useLoad from '../lib/useLoad'
 import PageHeader from '../components/PageHeader'
-import { dateLabel, money } from '../lib/format'
+import { currentMonth, monthLabel, money } from '../lib/format'
 import {
   Card, Empty, ErrorBox, Input, Loading, PrimaryButton, Row, Select, Status, Table, Tag, Td,
 } from '../components/ui'
@@ -14,6 +14,11 @@ export default function Campaigns() {
   const navigate = useNavigate()
 
   const { data: campaigns, loading, error } = useLoad(() => api.get('/api/campaigns'))
+
+  // This month's money per campaign, so the list shows what is performing
+  const month = currentMonth()
+  const { data: finance } = useLoad(() => api.get(`/api/finance/summary?from=${month}&to=${month}`), [month])
+  const moneyByCampaign = Object.fromEntries((finance?.campaigns || []).map((c) => [c.campaignId, c]))
 
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
@@ -77,7 +82,7 @@ export default function Campaigns() {
             { label: 'Model' },
             { label: 'Payout', align: 'right' },
             { label: 'Manager' },
-            { label: 'Dates' },
+            { label: `Profit · ${monthLabel(month)}`, align: 'right' },
             { label: 'Status' },
           ]}
         >
@@ -94,8 +99,8 @@ export default function Campaigns() {
               <Td><Tag>{c.pricingModel}</Tag></Td>
               <Td align="right">{c.payout != null ? money(c.payout, c.currency) : '—'}</Td>
               <Td>{c.managerName || '—'}</Td>
-              <Td className="text-[#667085] text-xs whitespace-nowrap">
-                {dateLabel(c.startDate)} → {c.endDate ? dateLabel(c.endDate) : 'ongoing'}
+              <Td align="right">
+                <CampaignMonth row={moneyByCampaign[c.id]} />
               </Td>
               <Td><Status status={c.status} /></Td>
             </Row>
@@ -103,6 +108,24 @@ export default function Campaigns() {
         </Table>
       )}
     </Card>
+    </>
+  )
+}
+
+// Profit this month, or what is still missing
+function CampaignMonth({ row }) {
+  if (!row) return <span className="text-[#c8d0dd]">—</span>
+
+  if (Number(row.revenue) === 0) {
+    return <span className="text-[11px] font-bold text-[#b54708]">Revenue not entered</span>
+  }
+
+  const profit = Number(row.profit)
+
+  return (
+    <>
+      <div className={`font-semibold ${profit >= 0 ? 'text-[#0f9f6e]' : 'text-[#d92d20]'}`}>{money(profit, row.currency)}</div>
+      <div className="text-[11px] text-[#98a2b3]">of {money(row.revenue, row.currency)}</div>
     </>
   )
 }

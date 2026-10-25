@@ -26,7 +26,7 @@ export default function TrendChart({ rows, currency }) {
   const [view, setView] = useState('chart')
 
   return (
-    <div className="grid gap-3">
+    <div className="grid grid-cols-1 gap-3">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <Legend />
         <div className="inline-flex p-[3px] rounded-[8px] bg-[#eef1f5]">

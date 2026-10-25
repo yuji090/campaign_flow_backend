@@ -24,7 +24,25 @@ public class MonthEntryResponse {
     // totalEvents - payableEvents
     private long scrubbedEvents;
 
+    private Long approvedEvents;
+
     private BigDecimal payout;
+
+    private BigDecimal adjustment;
+
+    private String adjustmentNote;
+
+    // payout + adjustment: what counts in reports
+    private BigDecimal netPayout;
+
+    // payableEvents x the distribution's rate; null when no rate is set
+    private BigDecimal expectedPayout;
+
+    // payout differs from expectedPayout by more than 1%
+    private boolean payoutMismatch;
+
+    // A closed month cannot be edited until an admin reopens it
+    private boolean closed;
 
     private String currency;
 

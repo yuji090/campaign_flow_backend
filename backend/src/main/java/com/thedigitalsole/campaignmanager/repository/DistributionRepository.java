@@ -3,8 +3,10 @@ package com.thedigitalsole.campaignmanager.repository;
 import com.thedigitalsole.campaignmanager.exception.NotFoundException;
 import com.thedigitalsole.campaignmanager.model.distribution.Distribution;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
+import java.util.Set;
 
 public interface DistributionRepository
         extends JpaRepository<Distribution, Long> {
@@ -21,4 +23,7 @@ public interface DistributionRepository
     List<Distribution> findByCampaignIdAndPublisherId(Long campaignId, Long publisherId);
 
     boolean existsByCampaignId(Long campaignId);
+
+    @Query("select distinct d.campaign.id from Distribution d")
+    Set<Long> findCampaignIdsWithDistributions();
 }

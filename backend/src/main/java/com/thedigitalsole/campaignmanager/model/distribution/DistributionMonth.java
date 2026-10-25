@@ -44,10 +44,26 @@ public class DistributionMonth extends BaseEntity {
     @Column(nullable = false)
     private long payableEvents;
 
+    // Of this publisher's events, how many the advertiser approved (optional).
+    // When every publisher in a month has it, revenue is split by it instead of payable events.
+    private Long approvedEvents;
+
     // What we pay the publisher this month
     @Column(nullable = false, precision = 14, scale = 4)
     private BigDecimal payout = BigDecimal.ZERO;
 
+    // Signed correction booked in this month, e.g. -300 for a fraud deduction on last month
+    @Column(nullable = false, precision = 14, scale = 4)
+    private BigDecimal adjustment = BigDecimal.ZERO;
+
+    @Column(length = 500)
+    private String adjustmentNote;
+
     @Column(length = 1000)
     private String notes;
+
+    // What counts in every report: payout plus adjustment
+    public BigDecimal netPayout() {
+        return payout.add(adjustment);
+    }
 }

@@ -16,10 +16,17 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+
+import static com.thedigitalsole.campaignmanager.service.ChangeLogService.Diff;
+import static com.thedigitalsole.campaignmanager.service.ChangeLogService.entry;
+import static com.thedigitalsole.campaignmanager.service.ChangeLogService.monthLabel;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +37,8 @@ public class DistributionService {
     private final CampaignRepository campaignRepository;
     private final UserRepository userRepository;
     private final PartnerService partnerService;
+    private final PeriodService periodService;
+    private final ChangeLogService changeLogService;
 
     // =========================
     // CREATE
@@ -100,9 +109,19 @@ public class DistributionService {
             );
         }
 
+        BigDecimal rateBefore = distribution.getPayout();
+
         applyRequest(distribution, request);
 
-        return toResponse(distributionRepository.save(distribution));
+        Distribution saved = distributionRepository.save(distribution);
+
+        changeLogService.record(entry("DISTRIBUTION", saved.getId(), "UPDATE")
+                .campaign(saved.getCampaign().getId())
+                .distribution(saved.getId())
+                .partner(saved.getPublisher().getId())
+                .summary(new Diff().change("rate", rateBefore, saved.getPayout()).join(publisherLabel(saved) + " ")));
+
+        return toResponse(saved);
     }
 
     // =========================
@@ -134,9 +153,11 @@ public class DistributionService {
 
         distributionRepository.getOrThrow(distributionId);
 
+        Set<YearMonth> closed = periodService.getClosedMonthSet();
+
         return monthRepository.findByDistributionIdOrderByMonthAsc(distributionId)
                 .stream()
-                .map(this::toMonthResponse)
+                .map(m -> toMonthResponse(m, closed.contains(YearMonth.from(m.getMonth()))))
                 .toList();
     }
 
@@ -152,7 +173,24 @@ public class DistributionService {
             throw new IllegalArgumentException("Payable events cannot be more than total events");
         }
 
+        if (request.getApprovedEvents() != null && request.getApprovedEvents() > request.getTotalEvents()) {
+            throw new IllegalArgumentException("Advertiser-approved events cannot be more than total events");
+        }
+
+        BigDecimal adjustment = request.getAdjustment() != null ? request.getAdjustment() : BigDecimal.ZERO;
+        String adjustmentNote = blankToNull(request.getAdjustmentNote());
+
+        if (adjustment.signum() != 0 && adjustmentNote == null) {
+            throw new IllegalArgumentException("Add a reason for the adjustment, e.g. \"Sep fraud deduction\"");
+        }
+
+        if (request.getPayout().add(adjustment).signum() < 0) {
+            throw new IllegalArgumentException("Payout plus adjustment cannot be below zero");
+        }
+
         Distribution distribution = distributionRepository.getOrThrow(distributionId);
+        periodService.assertEditable(month);
+
         LocalDate monthStart = month.atDay(1);
 
         DistributionMonth entry = monthRepository
@@ -164,16 +202,46 @@ public class DistributionService {
                     return created;
                 });
 
-        if (entry.getId() != null) {
+        boolean isNew = entry.getId() == null;
+
+        if (!isNew) {
             entry.checkVersion(request.getVersion(), month + " for this distribution");
         }
 
+        Diff diff = isNew
+                ? new Diff()
+                        .value("total events", request.getTotalEvents())
+                        .value("payable", request.getPayableEvents())
+                        .value("approved", request.getApprovedEvents())
+                        .value("payout", request.getPayout())
+                        .value("adjustment", adjustment)
+                : new Diff()
+                        .change("total events", entry.getTotalEvents(), request.getTotalEvents())
+                        .change("payable", entry.getPayableEvents(), request.getPayableEvents())
+                        .change("approved", entry.getApprovedEvents(), request.getApprovedEvents())
+                        .change("payout", entry.getPayout(), request.getPayout())
+                        .change("adjustment", entry.getAdjustment(), adjustment);
+
         entry.setTotalEvents(request.getTotalEvents());
         entry.setPayableEvents(request.getPayableEvents());
+        entry.setApprovedEvents(request.getApprovedEvents());
         entry.setPayout(request.getPayout());
+        entry.setAdjustment(adjustment);
+        entry.setAdjustmentNote(adjustment.signum() != 0 ? adjustmentNote : null);
         entry.setNotes(blankToNull(request.getNotes()));
 
-        return toMonthResponse(monthRepository.save(entry));
+        DistributionMonth saved = monthRepository.save(entry);
+
+        changeLogService.record(entry("DISTRIBUTION_MONTH", saved.getId(), isNew ? "CREATE" : "UPDATE")
+                .campaign(distribution.getCampaign().getId())
+                .distribution(distributionId)
+                .partner(distribution.getPublisher().getId())
+                .month(monthStart)
+                .summary(CampaignService.withNote(
+                        diff.join(publisherLabel(distribution) + " · " + monthLabel(month) + " " + (isNew ? "added" : "edited") + ": "),
+                        saved.getAdjustmentNote())));
+
+        return toMonthResponse(saved, false);
     }
 
     @Transactional
@@ -186,6 +254,21 @@ public class DistributionService {
                                 "No entry for " + month + " on distribution " + distributionId
                         )
                 );
+
+        periodService.assertOpen(month);
+
+        Distribution distribution = entry.getDistribution();
+
+        changeLogService.record(entry("DISTRIBUTION_MONTH", entry.getId(), "DELETE")
+                .campaign(distribution.getCampaign().getId())
+                .distribution(distributionId)
+                .partner(distribution.getPublisher().getId())
+                .month(entry.getMonth())
+                .summary(new Diff()
+                        .value("payable", entry.getPayableEvents())
+                        .value("payout", entry.getPayout())
+                        .value("adjustment", entry.getAdjustment())
+                        .join(publisherLabel(distribution) + " · " + monthLabel(month) + " deleted: ")));
 
         monthRepository.delete(entry);
     }
@@ -265,7 +348,13 @@ public class DistributionService {
         return response;
     }
 
-    private MonthEntryResponse toMonthResponse(DistributionMonth entry) {
+    // "Adsterra" or "Adsterra (BR)"
+    private String publisherLabel(Distribution distribution) {
+        String name = distribution.getPublisher().getCompanyName();
+        return distribution.getLabel() != null ? name + " (" + distribution.getLabel() + ")" : name;
+    }
+
+    private MonthEntryResponse toMonthResponse(DistributionMonth entry, boolean closed) {
 
         MonthEntryResponse response = new MonthEntryResponse();
 
@@ -275,7 +364,23 @@ public class DistributionService {
         response.setTotalEvents(entry.getTotalEvents());
         response.setPayableEvents(entry.getPayableEvents());
         response.setScrubbedEvents(entry.getTotalEvents() - entry.getPayableEvents());
+        response.setApprovedEvents(entry.getApprovedEvents());
         response.setPayout(entry.getPayout());
+        response.setAdjustment(entry.getAdjustment());
+        response.setAdjustmentNote(entry.getAdjustmentNote());
+        response.setNetPayout(entry.netPayout());
+        response.setClosed(closed);
+
+        BigDecimal rate = entry.getDistribution().getPayout();
+
+        if (rate != null && rate.signum() > 0) {
+            BigDecimal expected = rate.multiply(BigDecimal.valueOf(entry.getPayableEvents())).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal tolerance = expected.abs().multiply(new BigDecimal("0.01")).max(new BigDecimal("0.01"));
+
+            response.setExpectedPayout(expected);
+            response.setPayoutMismatch(entry.getPayout().subtract(expected).abs().compareTo(tolerance) > 0);
+        }
+
         response.setCurrency(entry.getDistribution().getCurrency());
         response.setNotes(entry.getNotes());
         response.setUpdatedByName(entry.getUpdatedBy() != null ? entry.getUpdatedBy().getName() : null);

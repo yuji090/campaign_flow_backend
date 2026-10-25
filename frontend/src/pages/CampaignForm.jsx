@@ -5,7 +5,7 @@ import { getUser } from '../lib/auth'
 import { clean, toNumberOrNull } from '../lib/format'
 import PageHeader from '../components/PageHeader'
 import {
-  Card, ErrorBox, Field, FormGrid, Input, Loading, PrimaryButton, SecondaryButton, Select, Textarea, Toggle,
+  Callout, Card, ErrorBox, Field, FormGrid, Input, Loading, PrimaryButton, SecondaryButton, Select, Textarea, Toggle,
 } from '../components/ui'
 
 const PRICING_MODELS = ['CPI', 'CPA', 'CPL', 'CPS', 'CPC', 'CPM']
@@ -34,6 +34,8 @@ export default function CampaignForm() {
   const [form, setForm] = useState(initialForm)
   const [originalName, setOriginalName] = useState('')
   const [version, setVersion] = useState(null)
+  // Once revenue or distributions exist, advertiser, direct and currency are fixed
+  const [locked, setLocked] = useState(false)
   const [advertisers, setAdvertisers] = useState([])
   const [users, setUsers] = useState([])
 
@@ -56,6 +58,7 @@ export default function CampaignForm() {
         if (campaign) {
           setOriginalName(campaign.name)
           setVersion(campaign.version)
+          setLocked(campaign.locked)
           setForm({
             name: campaign.name,
             pricingModel: campaign.pricingModel,
@@ -94,7 +97,7 @@ export default function CampaignForm() {
       name: form.name.trim(),
       pricingModel: form.pricingModel,
       direct: form.direct,
-      advertiserId: toNumberOrNull(form.advertiserId),
+      advertiserId: form.direct ? null : toNumberOrNull(form.advertiserId),
       payout: toNumberOrNull(form.payout),
       currency: clean(form.currency)?.toUpperCase(),
       status: form.status,
@@ -145,7 +148,7 @@ export default function CampaignForm() {
       />
 
       {loading ? <Loading /> : (
-      <div className="grid gap-[21px] max-w-[980px]">
+      <div className="grid grid-cols-1 gap-[21px] max-w-[980px]">
 
       <ErrorBox message={error} />
 
@@ -182,26 +185,41 @@ export default function CampaignForm() {
       </Card>
 
       <Card title="Source" description="Who gave us this campaign.">
-        <FormGrid>
-          <Field label="Campaign type">
-            <div>
-              <Toggle checked={form.direct} onClick={() => setField('direct', !form.direct)}>
-                Direct campaign
-              </Toggle>
-            </div>
-          </Field>
+        <div className="grid grid-cols-1 gap-4">
+          {locked && (
+            <Callout tone="info" icon="🔒">
+              The source and currency are fixed because this campaign already has revenue or distributions.
+              If it now comes from another advertiser, create a new campaign for it.
+            </Callout>
+          )}
 
-          <Field
-            label="Advertiser"
-            required={!form.direct}
-            hint={advertisers.length ? null : 'No advertisers yet. Add one under Partners first.'}
-          >
-            <Select value={form.advertiserId} onChange={(e) => setField('advertiserId', e.target.value)}>
-              <option value="">{form.direct ? 'None (direct)' : 'Select an advertiser'}</option>
-              {advertisers.map((p) => <option key={p.id} value={p.id}>{p.companyName}</option>)}
-            </Select>
-          </Field>
-        </FormGrid>
+          <FormGrid>
+            <Field label="Campaign type">
+              <div>
+                <Toggle
+                  checked={form.direct}
+                  disabled={locked}
+                  onClick={() => setForm((old) => ({ ...old, direct: !old.direct, advertiserId: old.direct ? old.advertiserId : '' }))}
+                >
+                  Direct campaign (our own, no advertiser)
+                </Toggle>
+              </div>
+            </Field>
+
+            {!form.direct && (
+              <Field
+                label="Advertiser"
+                required
+                hint={advertisers.length ? null : 'No advertisers yet. Add one under Partners first.'}
+              >
+                <Select disabled={locked} value={form.advertiserId} onChange={(e) => setField('advertiserId', e.target.value)}>
+                  <option value="">Select an advertiser</option>
+                  {advertisers.map((p) => <option key={p.id} value={p.id}>{p.companyName}</option>)}
+                </Select>
+              </Field>
+            )}
+          </FormGrid>
+        </div>
       </Card>
 
       <Card title="Payout & schedule" description="What we get paid per event. For reference; monthly revenue is entered separately.">
@@ -220,6 +238,7 @@ export default function CampaignForm() {
           <Field label="Currency" hint="All money for this campaign uses this currency. Locked once distributions or revenue exist.">
             <Input
               maxLength={3}
+              disabled={locked}
               value={form.currency}
               onChange={(e) => setField('currency', e.target.value.toUpperCase())}
               placeholder="USD"

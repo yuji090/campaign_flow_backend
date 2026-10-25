@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { money } from '../lib/format'
 
 /* ----------------------------- */
@@ -31,7 +31,7 @@ export function Textarea(props) {
 
 export function Field({ label, required = false, full = false, hint, children }) {
   return (
-    <label className={`grid gap-[7px] min-w-0 content-start ${full ? 'col-span-full' : ''}`}>
+    <label className={`grid grid-cols-1 gap-[7px] min-w-0 content-start ${full ? 'col-span-full' : ''}`}>
       <span className="text-[#475467] text-[11px] font-bold">
         {label}
         {required && <b className="text-[#d92d20]"> *</b>}
@@ -52,12 +52,13 @@ export function FormGrid({ children }) {
   )
 }
 
-export function Toggle({ checked, onClick, children }) {
+export function Toggle({ checked, onClick, disabled = false, children }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`border rounded-[7px] px-[10px] py-2 cursor-pointer text-xs flex gap-[7px] items-center transition ${
+      disabled={disabled}
+      className={`border rounded-[7px] px-[10px] py-2 cursor-pointer text-xs flex gap-[7px] items-center transition disabled:opacity-60 disabled:cursor-not-allowed ${
         checked
           ? 'text-[#3563e9] border-[#adc0ff] bg-[#edf2ff]'
           : 'bg-white border-[#e6eaf0] text-[#667085] hover:border-[#cbd3e1]'
@@ -123,7 +124,7 @@ export function LinkButton({ children, danger = false, ...props }) {
 
 export function Card({ eyebrow, title, description, actions, children, className = '' }) {
   return (
-    <section className={`bg-white border border-[#e6eaf0] rounded-[11px] p-[23px] min-w-0 ${className}`}>
+    <section className={`bg-white border border-[#e6eaf0] rounded-[11px] p-4 sm:p-[23px] min-w-0 ${className}`}>
       {(title || actions) && (
         <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
           <div>
@@ -145,7 +146,7 @@ export function Card({ eyebrow, title, description, actions, children, className
   )
 }
 
-export function Metric({ icon, label, value, note, type = 'blue' }) {
+export function Metric({ icon, label, value, note, type = 'blue', valueClass = '' }) {
   const styles = {
     blue: 'text-[#3563e9] bg-[#3563e9]/10',
     green: 'text-[#0f9f6e] bg-[#0f9f6e]/10',
@@ -155,12 +156,12 @@ export function Metric({ icon, label, value, note, type = 'blue' }) {
   }
 
   return (
-    <div className="bg-white border border-[#e6eaf0] rounded-[11px] p-[19px] flex gap-[14px] items-center min-w-0">
-      <span className={`w-10 h-10 shrink-0 rounded-[9px] grid place-items-center text-xl font-extrabold ${styles[type]}`}>
+    <div className="bg-white border border-[#e6eaf0] rounded-[11px] p-3 sm:p-[19px] flex gap-3 sm:gap-[14px] items-center min-w-0">
+      <span className={`hidden sm:grid w-10 h-10 shrink-0 rounded-[9px] place-items-center text-xl font-extrabold ${styles[type]}`}>
         {icon}
       </span>
       <div className="min-w-0">
-        <strong className="block text-[22px] leading-none truncate">{value}</strong>
+        <strong className={`block text-[18px] sm:text-[22px] leading-none truncate tabular-nums ${valueClass}`}>{value}</strong>
         <div className="font-bold text-xs mt-1">{label}</div>
         {note && <small className="text-[#98a2b3] text-[10px] block mt-1">{note}</small>}
       </div>
@@ -183,7 +184,7 @@ export function Detail({ label, children }) {
 
 export function Table({ columns, children, footer }) {
   return (
-    <div className="overflow-x-auto -mx-[23px] px-[23px]">
+    <div className="overflow-x-auto -mx-4 px-4 sm:-mx-[23px] sm:px-[23px]">
       <table className="w-full border-collapse text-[13px]">
         <thead>
           <tr>
@@ -268,12 +269,155 @@ export function Tag({ children, color = 'blue' }) {
   )
 }
 
-// Green for positive, red for negative
-export function Money({ value, currency, signed = false }) {
+// Green for positive, red for negative. null/undefined shows a dash when `dash` is set.
+export function Money({ value, currency, signed = false, muted = false, dash = false }) {
+  if (dash && (value === null || value === undefined)) {
+    return <span className="text-[#c8d0dd]">—</span>
+  }
+
   const amount = Number(value || 0)
-  const color = !signed || amount === 0 ? '' : amount > 0 ? 'text-[#0f9f6e]' : 'text-[#d92d20]'
+  const color = signed && amount !== 0
+    ? amount > 0 ? 'text-[#0f9f6e]' : 'text-[#d92d20]'
+    : muted ? 'text-[#667085]' : ''
 
   return <span className={`tabular-nums font-semibold ${color}`}>{money(amount, currency)}</span>
+}
+
+/* ----------------------------- */
+/* Flags & callouts              */
+/* ----------------------------- */
+
+const FLAG_TONES = {
+  warning: 'text-[#b54708] bg-[#fffaeb] border-[#fedf89]',
+  danger: 'text-[#b42318] bg-[#fff0ef] border-[#fecdca]',
+  info: 'text-[#3563e9] bg-[#f5f8ff] border-[#d6e0ff]',
+  success: 'text-[#067647] bg-[#ecfdf3] border-[#abefc6]',
+  gray: 'text-[#475467] bg-[#f2f4f7] border-[#e4e7ec]',
+}
+
+// Small inline pill next to a value: "Revenue pending", "Closed"
+export function Flag({ tone = 'warning', icon, children, title }) {
+  return (
+    <span
+      title={title}
+      className={`inline-flex items-center gap-1 px-[6px] py-[2px] rounded-[5px] border text-[10px] font-bold whitespace-nowrap align-middle ${FLAG_TONES[tone]}`}
+    >
+      {icon && <span aria-hidden>{icon}</span>}
+      {children}
+    </span>
+  )
+}
+
+export function ClosedFlag() {
+  return <Flag tone="gray" icon="🔒" title="Closed: an admin has to reopen this month to change it">Closed</Flag>
+}
+
+// Full-width message: warnings, tips, next steps
+export function Callout({ tone = 'warning', icon, title, children, action }) {
+  const icons = { warning: '⚠', danger: '⛔', info: 'ℹ', success: '✓', gray: '•' }
+
+  return (
+    <div className={`rounded-[10px] border px-4 py-3 text-[13px] flex gap-3 items-start ${FLAG_TONES[tone]}`}>
+      <span className="mt-[1px] shrink-0" aria-hidden>{icon || icons[tone]}</span>
+      <div className="flex-1 min-w-0 leading-[1.5]">
+        {title && <div className="font-bold">{title}</div>}
+        {children && <div className={title ? 'opacity-90' : ''}>{children}</div>}
+      </div>
+      {action && <div className="shrink-0 self-center">{action}</div>}
+    </div>
+  )
+}
+
+/* ----------------------------- */
+/* Menus & tabs                  */
+/* ----------------------------- */
+
+// "⋯" button with a dropdown, for rare or dangerous actions
+//   items: [{ label, onClick, danger, hidden }]
+export function Menu({ items, label = 'More actions' }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+
+    const close = (event) => !ref.current?.contains(event.target) && setOpen(false)
+    const onKey = (event) => event.key === 'Escape' && setOpen(false)
+
+    document.addEventListener('mousedown', close)
+    document.addEventListener('keydown', onKey)
+
+    return () => {
+      document.removeEventListener('mousedown', close)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  const visible = items.filter((item) => !item.hidden)
+  if (visible.length === 0) return null
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        title={label}
+        aria-label={label}
+        onClick={() => setOpen(!open)}
+        className="h-[40px] w-[40px] rounded-lg border border-[#e6eaf0] bg-white text-[#475467] cursor-pointer text-[18px] leading-none hover:border-[#cbd3e1] transition"
+      >
+        ⋯
+      </button>
+
+      {open && (
+        <div className="absolute right-0 z-40 top-[calc(100%+6px)] min-w-[200px] bg-white border border-[#e6eaf0] rounded-[10px] shadow-[0_12px_32px_rgba(16,24,40,.14)] p-1">
+          {visible.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              onClick={() => {
+                setOpen(false)
+                item.onClick()
+              }}
+              className={`w-full text-left border-0 bg-transparent cursor-pointer rounded-[7px] px-3 py-[9px] text-[13px] font-semibold hover:bg-[#f5f7fa] ${
+                item.danger ? 'text-[#d92d20]' : 'text-[#344054]'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+//   tabs: [{ id, label, count }]
+export function Tabs({ tabs, value, onChange }) {
+  return (
+    <div className="flex gap-1 border-b border-[#e6eaf0] overflow-x-auto">
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          onClick={() => onChange(tab.id)}
+          className={`border-0 bg-transparent cursor-pointer px-3 pb-[10px] pt-1 text-[13px] font-bold whitespace-nowrap -mb-px border-b-2 transition ${
+            value === tab.id
+              ? 'text-[#172033] border-[#3563e9]'
+              : 'text-[#667085] border-transparent hover:text-[#172033]'
+          }`}
+        >
+          {tab.label}
+          {tab.count !== undefined && (
+            <span className={`ml-[6px] px-[6px] py-[1px] rounded-full text-[10px] ${
+              value === tab.id ? 'bg-[#edf2ff] text-[#3563e9]' : 'bg-[#f2f4f7] text-[#667085]'
+            }`}>
+              {tab.count}
+            </span>
+          )}
+        </button>
+      ))}
+    </div>
+  )
 }
 
 /* ----------------------------- */
@@ -310,6 +454,15 @@ export function ErrorBox({ message }) {
 /* ----------------------------- */
 
 export function Modal({ title, description, onClose, children, footer, wide = false }) {
+  // Keep the page behind from scrolling while the modal is open
+  useEffect(() => {
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previous
+    }
+  }, [])
+
   useEffect(() => {
     const onKey = (event) => event.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)

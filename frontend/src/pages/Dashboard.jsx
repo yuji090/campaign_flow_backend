@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../services/api'
 import useLoad from '../lib/useLoad'
-import { getUser } from '../lib/auth'
+import { getUser, isAdmin } from '../lib/auth'
 import { currentMonth, money, monthLabel, percent } from '../lib/format'
 import { addMonths } from '../lib/period'
 import PageHeader from '../components/PageHeader'
@@ -64,16 +64,23 @@ export default function Dashboard() {
     return <>{header}<GettingStarted partners={partners} navigate={navigate} /></>
   }
 
+  const outstanding = current.partners
+    .filter((p) => Number(p.outstandingReceivable) !== 0 || Number(p.outstandingPayable) !== 0)
+
   const currency = mainCurrency(trend)
   const totals = current.totals.find((t) => t.currency === currency) || zeroTotals(currency)
   const prevTotals = previous.totals.find((t) => t.currency === currency) || zeroTotals(currency)
   const otherCurrencies = current.totals.filter((t) => t.currency !== currency)
 
+  // Missing entries make this month's profit unreliable; say so on the cards
+  const monthRow = current.months.find((m) => m.month === month && m.currency === currency)
+  const incomplete = monthRow && (monthRow.campaignsMissingRevenue > 0 || monthRow.campaignsMissingPayouts > 0)
+
   return (
     <>
       {header}
 
-      <div className={`grid gap-[21px] transition-opacity ${loading ? 'opacity-60' : ''}`}>
+      <div className={`grid grid-cols-1 gap-[21px] transition-opacity ${loading ? 'opacity-60' : ''}`}>
 
         {/* KPIs vs previous month */}
         <section className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-[15px]">
@@ -89,6 +96,16 @@ export default function Dashboard() {
           />
           <Kpi label="Margin" value={percent(totals.marginPct)} change={ppChange(totals.marginPct, prevTotals.marginPct)} goodWhenUp prevMonth={prevMonth} />
         </section>
+
+        {incomplete && (
+          <div className="text-[12px] text-[#b54708] -mt-2 flex items-center gap-2">
+            <span>⚠</span>
+            {monthLabel(month)} is not complete yet
+            {monthRow.campaignsMissingRevenue > 0 && ` · ${monthRow.campaignsMissingRevenue} campaign${monthRow.campaignsMissingRevenue === 1 ? '' : 's'} without revenue`}
+            {monthRow.campaignsMissingPayouts > 0 && ` · ${monthRow.campaignsMissingPayouts} without publisher payouts`}
+            , so the comparison with {monthLabel(prevMonth).split(' ')[0]} is not final.
+          </div>
+        )}
 
         {otherCurrencies.length > 0 && (
           <div className="text-[12px] text-[#667085] -mt-2">
@@ -149,40 +166,45 @@ export default function Dashboard() {
             )}
           </Card>
 
-          <Card eyebrow={monthLabel(month).toUpperCase()} title="Partner balances">
-            {current.partners.length === 0 ? (
-              <Empty title="No partner money this month" />
+          <Card
+            eyebrow="TODAY · ALL TIME"
+            title="Who owes what"
+            actions={<LinkButton onClick={() => navigate('/payments')}>Payments →</LinkButton>}
+          >
+            {outstanding.length === 0 ? (
+              <Empty title="Everything is settled" text="No open balances with any partner." />
             ) : (
               <div className="grid">
-                {current.partners.slice(0, 6).map((p) => {
-                  const net = Number(p.net)
+                {outstanding.slice(0, 6).map((p) => {
+                  const receivable = Number(p.outstandingReceivable)
+                  const payable = Number(p.outstandingPayable)
 
                   return (
                     <button
                       type="button"
                       key={`${p.partnerId}-${p.currency}`}
                       onClick={() => navigate(`/partners/${p.partnerId}`)}
-                      className="flex items-center justify-between gap-3 py-[11px] border-0 border-b border-[#eef1f5] bg-transparent cursor-pointer text-left hover:bg-[#f8faff] -mx-2 px-2 rounded-[6px]"
+                      className="flex items-center justify-between gap-3 py-[11px] border-0 border-b border-[#eef1f5] last:border-0 bg-transparent cursor-pointer text-left hover:bg-[#f8faff] -mx-2 px-2 rounded-[6px]"
                     >
-                      <div className="min-w-0">
-                        <div className="text-[13px] font-bold truncate">{p.partnerName}</div>
-                        <div className="text-[11px] text-[#98a2b3]">
-                          {Number(p.receivable) > 0 && `Receive ${money(p.receivable, p.currency)}`}
-                          {Number(p.receivable) > 0 && Number(p.payable) > 0 && ' · '}
-                          {Number(p.payable) > 0 && `Pay ${money(p.payable, p.currency)}`}
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className={`text-[13px] font-bold tabular-nums ${net >= 0 ? 'text-[#0f9f6e]' : 'text-[#d92d20]'}`}>
-                          {money(Math.abs(net), p.currency)}
-                        </div>
-                        <div className="text-[10px] font-bold uppercase tracking-[.4px] text-[#98a2b3]">
-                          {net >= 0 ? 'owes us' : 'we owe'}
-                        </div>
+                      <div className="min-w-0 text-[13px] font-bold truncate">{p.partnerName}</div>
+                      <div className="text-right shrink-0 grid gap-[2px]">
+                        {receivable !== 0 && (
+                          <div className="text-[13px] font-bold tabular-nums text-[#0f9f6e]">
+                            {money(receivable, p.currency)} <span className="text-[10px] font-bold uppercase tracking-[.4px] text-[#98a2b3]">owes us</span>
+                          </div>
+                        )}
+                        {payable !== 0 && (
+                          <div className="text-[13px] font-bold tabular-nums text-[#dc6803]">
+                            {money(payable, p.currency)} <span className="text-[10px] font-bold uppercase tracking-[.4px] text-[#98a2b3]">we owe</span>
+                          </div>
+                        )}
                       </div>
                     </button>
                   )
                 })}
+                {outstanding.length > 6 && (
+                  <LinkButton onClick={() => navigate('/finance')}>+{outstanding.length - 6} more in finance →</LinkButton>
+                )}
               </div>
             )}
           </Card>
@@ -246,7 +268,7 @@ function Attention({ items, navigate }) {
           All clear, nothing pending
         </div>
       ) : (
-        <div className="grid gap-[2px]">
+        <div className="grid grid-cols-1 gap-[2px]">
           {visible.map((item) => (
             <button
               type="button"
@@ -257,11 +279,11 @@ function Attention({ items, navigate }) {
               <span className={`mt-[1px] w-[22px] h-[22px] shrink-0 rounded-full grid place-items-center text-[11px] font-extrabold ${item.tone}`}>
                 {item.icon}
               </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[13px] font-semibold text-[#172033]">{item.title}</span>
+              <span className="min-w-0 flex-1 overflow-hidden">
+                <span className="block text-[13px] font-semibold text-[#172033] truncate">{item.title}</span>
                 <span className="block text-[11px] text-[#667085] truncate">{item.detail}</span>
               </span>
-              <span className="text-[#3563e9] text-[11px] font-bold whitespace-nowrap mt-[3px]">{item.action} →</span>
+              <span className="shrink-0 text-[#3563e9] text-[11px] font-bold whitespace-nowrap mt-[3px]">{item.action} →</span>
             </button>
           ))}
           {items.length > visible.length && (
@@ -297,6 +319,37 @@ function attentionItems({ current, previous, month, prevMonth, campaigns, distri
         })
       }
     }
+  }
+
+  // Revenue entered but publisher payouts missing: profit is overstated
+  for (const [summary, m] of [[current, month], [previous, prevMonth]]) {
+    const missing = summary.months.filter((row) => row.month === m).reduce((sum, row) => sum + row.campaignsMissingPayouts, 0)
+    if (missing > 0) {
+      items.push({
+        key: `payouts-${m}`,
+        icon: '!',
+        tone: TONES.warning,
+        title: `${monthLabel(m)} payouts missing`,
+        detail: `${missing} campaign${missing === 1 ? ' has' : 's have'} revenue but no publisher entry`,
+        action: 'Check',
+        to: `/finance?month=${m}`,
+      })
+    }
+  }
+
+  // Last month has data but is still open: remind admins to close it
+  const prevRows = previous.months.filter((row) => row.month === prevMonth)
+  if (isAdmin() && prevRows.length > 0 && !prevRows[0].closed && prevMonth < currentMonth()) {
+    const complete = prevRows.every((row) => row.campaignsMissingRevenue === 0 && row.campaignsMissingPayouts === 0)
+    items.push({
+      key: `close-${prevMonth}`,
+      icon: '🔒',
+      tone: TONES.info,
+      title: `Close ${monthLabel(prevMonth)}`,
+      detail: complete ? 'All numbers are in. Lock them once invoiced.' : 'Finish the missing entries, then lock the month.',
+      action: 'Review',
+      to: '/periods',
+    })
   }
 
   // Losing money this month (revenue entered, still negative)
@@ -376,7 +429,7 @@ function GettingStarted({ partners, navigate }) {
 
   return (
     <Card eyebrow="GETTING STARTED" title="How the money flows" className="max-w-[640px]">
-      <div className="grid gap-[17px]">
+      <div className="grid grid-cols-1 gap-[17px]">
         {steps.map((step, index) => (
           <div
             key={step.title}

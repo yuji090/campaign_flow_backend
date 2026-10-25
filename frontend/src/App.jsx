@@ -12,6 +12,8 @@ import Partners from './pages/Partners'
 import PartnerDetail from './pages/PartnerDetail'
 import Users from './pages/Users'
 import Finance from './pages/Finance'
+import Payments from './pages/Payments'
+import Periods from './pages/Periods'
 
 export default function App() {
   return (
@@ -34,6 +36,8 @@ export default function App() {
             <Route path="/distributions/:id" element={<DistributionDetail />} />
 
             <Route path="/finance" element={<Finance />} />
+            <Route path="/payments" element={<Payments />} />
+            <Route path="/periods" element={<Periods />} />
 
             <Route path="/partners" element={<Partners />} />
             <Route path="/partners/:id" element={<PartnerDetail />} />

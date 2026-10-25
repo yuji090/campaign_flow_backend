@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { money } from '../lib/format'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../services/api'
 import useLoad from '../lib/useLoad'
@@ -30,6 +31,13 @@ export default function Partners() {
   )
 
   const { data: users } = useLoad(() => api.get('/api/users'))
+
+  // All-time outstanding per partner, from the company summary
+  const { data: finance } = useLoad(() => api.get('/api/finance/summary'))
+  const balancesByPartner = {}
+  for (const b of finance?.partners || []) {
+    (balancesByPartner[b.partnerId] ||= []).push(b)
+  }
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase()
@@ -92,6 +100,7 @@ export default function Partners() {
               { label: 'Type' },
               { label: 'Contact' },
               { label: 'Handled by' },
+              { label: 'Open balance', align: 'right' },
               { label: 'Status' },
             ]}
           >
@@ -108,6 +117,7 @@ export default function Partners() {
                   {p.email && <div className="text-[#98a2b3]">{p.email}</div>}
                 </Td>
                 <Td className="text-xs">{p.employees.map((e) => e.name).join(', ') || '—'}</Td>
+                <Td align="right"><Balance rows={balancesByPartner[p.id]} /></Td>
                 <Td><Status status={p.active ? 'ACTIVE' : 'INACTIVE'} /></Td>
               </Row>
             ))}
@@ -123,4 +133,18 @@ export default function Partners() {
       )}
     </>
   )
+}
+
+// "owes us $2,600" / "we owe $350", one line per side and currency
+function Balance({ rows }) {
+  const lines = (rows || []).flatMap((b) => [
+    Number(b.outstandingReceivable) !== 0 && { key: `r-${b.currency}`, text: `${money(b.outstandingReceivable, b.currency)} owes us`, className: 'text-[#0f9f6e]' },
+    Number(b.outstandingPayable) !== 0 && { key: `p-${b.currency}`, text: `${money(b.outstandingPayable, b.currency)} we owe`, className: 'text-[#dc6803]' },
+  ]).filter(Boolean)
+
+  if (lines.length === 0) return <span className="text-[#c8d0dd]">—</span>
+
+  return lines.map((line) => (
+    <div key={line.key} className={`text-[12px] font-semibold ${line.className}`}>{line.text}</div>
+  ))
 }

@@ -11,7 +11,8 @@ import java.util.List;
  * Everything we have with one partner.
  * receivable = revenue of campaigns they gave us (they are the advertiser),
  * payable    = payout of distributions they run for us (they are the publisher),
- * net        = receivable - payable.
+ * net        = receivable - payable. All include adjustments.
+ * Totals and months cover the period; balances are all time, after payments and write-offs.
  * Amounts are grouped by currency, never mixed.
  */
 public record PartnerSummaryResponse(
@@ -32,6 +33,10 @@ public record PartnerSummaryResponse(
         YearMonth to,
 
         List<Total> totals,
+
+        // All time, per currency: billed, settled and still outstanding on both sides
+        List<Balance> balances,
+
         List<MonthRow> months,
 
         // Advertiser side: every campaign taken from them, campaign-wise
@@ -46,6 +51,20 @@ public record PartnerSummaryResponse(
             BigDecimal receivable,
             BigDecimal payable,
             BigDecimal net
+    ) {
+    }
+
+    public record Balance(
+            String currency,
+            BigDecimal billedReceivable,
+            // Payments received plus their deductions (tax withheld, fees)
+            BigDecimal received,
+            BigDecimal writtenOffReceivable,
+            BigDecimal outstandingReceivable,
+            BigDecimal billedPayable,
+            BigDecimal paid,
+            BigDecimal writtenOffPayable,
+            BigDecimal outstandingPayable
     ) {
     }
 

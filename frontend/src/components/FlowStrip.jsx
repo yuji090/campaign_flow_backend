@@ -15,7 +15,7 @@ export default function FlowStrip({ steps }) {
       {steps.map((step, index) => (
         <Fragment key={`${step.caption}-${index}`}>
           {index > 0 && (
-            <div className="flex items-center text-[#98a2b3] text-[18px] px-1 select-none">→</div>
+            <div className="hidden sm:flex items-center text-[#98a2b3] text-[18px] px-1 select-none">→</div>
           )}
 
           <Step step={step} onClick={step.to && !step.current ? () => navigate(step.to) : null} />
