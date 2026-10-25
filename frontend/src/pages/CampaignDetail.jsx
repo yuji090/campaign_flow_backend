@@ -4,6 +4,7 @@ import { api } from '../services/api'
 import useLoad from '../lib/useLoad'
 import { currentMonth, dateLabel, money, monthLabel, number, percent } from '../lib/format'
 import { toast } from '../lib/toast'
+import { hasChanges, withSnapshot } from '../lib/draft'
 import DistributionModal from '../components/DistributionModal'
 import HistoryModal from '../components/HistoryModal'
 import useConfirm from '../components/useConfirm'
@@ -73,7 +74,7 @@ export default function CampaignDetail() {
     const suggested = [currentMonth(), addMonths(currentMonth(), -1)].find((m) => !used.has(m)) || ''
 
     setActionError('')
-    setEntry({
+    setEntry(withSnapshot({
       month: month || suggested,
       events: existing ? String(existing.events) : '',
       revenue: existing ? String(existing.revenue) : '',
@@ -84,7 +85,21 @@ export default function CampaignDetail() {
       version: existing?.version,
       existing: Boolean(existing),
       fixedMonth: Boolean(month),
-    })
+    }))
+  }
+
+  // Ask before throwing away typed numbers
+  const cancelEntry = async () => {
+    if (hasChanges(entry)) {
+      const ok = await confirm({
+        title: 'Discard your changes?',
+        message: 'What you typed in this form has not been saved.',
+        confirmLabel: 'Discard',
+        danger: true,
+      })
+      if (!ok) return
+    }
+    setEntry(null)
   }
 
   const setEntryField = (field, value) => setEntry((old) => ({ ...old, [field]: value }))
@@ -291,6 +306,7 @@ export default function CampaignDetail() {
           {entry && (
             <form
               onSubmit={saveRevenue}
+              onKeyDown={(e) => e.key === 'Escape' && cancelEntry()}
               className="border border-[#adc0ff] bg-[#f8faff] rounded-[10px] p-4 grid gap-[15px]"
             >
               <div className="flex items-center justify-between gap-3">
@@ -371,7 +387,7 @@ export default function CampaignDetail() {
               </Field>
 
               <div className="flex gap-[10px] justify-end">
-                <SecondaryButton onClick={() => setEntry(null)}>Cancel</SecondaryButton>
+                <SecondaryButton onClick={cancelEntry}>Cancel</SecondaryButton>
                 <PrimaryButton type="submit" disabled={saving}>
                   {saving ? 'Saving…' : `Save ${entry.month ? monthLabel(entry.month) : 'revenue'}`}
                 </PrimaryButton>
@@ -390,9 +406,9 @@ export default function CampaignDetail() {
             <Table
               columns={[
                 { label: 'Month' },
-                { label: 'Approved', align: 'right' },
-                { label: 'Payable', align: 'right' },
-                { label: 'Revenue', align: 'right' },
+                { label: 'Approved', align: 'right', tip: 'Events the advertiser accepted that month (from their report).' },
+                { label: 'Payable', align: 'right', tip: 'Events we pay publishers for, after removing fraud. A big gap vs approved means publishers sent traffic the advertiser rejected.' },
+                { label: 'Revenue', align: 'right', tip: 'What the advertiser pays us, including any adjustment.' },
                 { label: 'Cost', align: 'right' },
                 { label: 'Profit', align: 'right' },
                 { label: 'Margin', align: 'right' },
@@ -490,8 +506,8 @@ export default function CampaignDetail() {
                 { label: 'Rate', align: 'right' },
                 { label: 'Payable', align: 'right' },
                 { label: 'Payout', align: 'right' },
-                { label: 'Est. revenue', align: 'right' },
-                { label: 'Est. profit', align: 'right' },
+                { label: 'Est. revenue', align: 'right', tip: "This publisher's share of the campaign revenue, split by approved events (or payable events). An estimate for comparing publishers." },
+                { label: 'Est. profit', align: 'right', tip: 'Estimated revenue minus payout, only for months whose revenue is entered.' },
                 { label: 'Status' },
               ]}
               footer={

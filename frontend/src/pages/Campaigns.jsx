@@ -5,10 +5,23 @@ import useLoad from '../lib/useLoad'
 import PageHeader from '../components/PageHeader'
 import { currentMonth, monthLabel, money } from '../lib/format'
 import {
-  Card, Empty, ErrorBox, Input, Loading, PrimaryButton, Row, Select, Status, Table, Tag, Td,
+  Card, Empty, ErrorBox, Input, Loading, PrimaryButton, Row, Select, Status, Table, Tabs, Tag, Td,
 } from '../components/ui'
 
-const STATUSES = ['DRAFT', 'LIVE', 'PAUSED', 'EXPIRED', 'ARCHIVED']
+// Status tabs; "Ended" groups expired and archived
+const TABS = [
+  { id: '', label: 'All', match: () => true },
+  { id: 'LIVE', label: 'Live', match: (c) => c.status === 'LIVE' },
+  { id: 'PAUSED', label: 'Paused', match: (c) => c.status === 'PAUSED' },
+  { id: 'DRAFT', label: 'Draft', match: (c) => c.status === 'DRAFT' },
+  { id: 'ENDED', label: 'Ended', match: (c) => ['EXPIRED', 'ARCHIVED'].includes(c.status) },
+]
+
+const SORTS = {
+  newest: { label: 'Newest first', compare: (a, b) => b.id - a.id },
+  name: { label: 'Name A–Z', compare: (a, b) => a.name.localeCompare(b.name) },
+  profit: { label: 'Profit this month', compare: null },
+}
 
 export default function Campaigns() {
   const navigate = useNavigate()
@@ -21,20 +34,25 @@ export default function Campaigns() {
   const moneyByCampaign = Object.fromEntries((finance?.campaigns || []).map((c) => [c.campaignId, c]))
 
   const [search, setSearch] = useState('')
-  const [status, setStatus] = useState('')
+  const [status, setStatus] = useState('LIVE')
+  const [sort, setSort] = useState('newest')
+
+  const tab = TABS.find((t) => t.id === status) || TABS[0]
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase()
+    const profitOf = (c) => Number(moneyByCampaign[c.id]?.profit ?? -Infinity)
+    const compare = SORTS[sort].compare || ((a, b) => profitOf(b) - profitOf(a))
 
     return (campaigns || [])
-      .filter((c) => !status || c.status === status)
+      .filter(tab.match)
       .filter((c) =>
         !term ||
         c.name.toLowerCase().includes(term) ||
         c.advertiserName?.toLowerCase().includes(term)
       )
-      .sort((a, b) => b.id - a.id)
-  }, [campaigns, search, status])
+      .sort(compare)
+  }, [campaigns, search, tab, sort, moneyByCampaign])
 
   return (
     <>
@@ -44,24 +62,28 @@ export default function Campaigns() {
       subtitle="Every campaign, where it came from and its status. Click one to see its money and distributions."
       actions={<PrimaryButton onClick={() => navigate('/campaigns/new')}>+ New campaign</PrimaryButton>}
     />
-    <Card
-      eyebrow="ALL CAMPAIGNS"
-      title={`${filtered.length} campaign${filtered.length === 1 ? '' : 's'}`}
-      actions={
-        <>
+    <Card>
+      <div className="flex items-end justify-between gap-3 flex-wrap -mt-1 mb-4">
+        <div className="flex-1 min-w-[280px]">
+          <Tabs
+            value={status}
+            onChange={setStatus}
+            tabs={TABS.map((t) => ({ id: t.id, label: t.label, count: (campaigns || []).filter(t.match).length }))}
+          />
+        </div>
+        <div className="flex gap-2 flex-wrap">
           <Input
             placeholder="Search name or advertiser"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-[230px]"
+            className="!w-[230px]"
           />
-          <Select value={status} onChange={(e) => setStatus(e.target.value)} className="w-[140px]">
-            <option value="">All statuses</option>
-            {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+          <Select value={sort} onChange={(e) => setSort(e.target.value)} className="!w-[170px]" aria-label="Sort">
+            {Object.entries(SORTS).map(([id, option]) => <option key={id} value={id}>{option.label}</option>)}
           </Select>
-        </>
-      }
-    >
+        </div>
+      </div>
+
       <ErrorBox message={error} />
 
       {loading ? (
@@ -69,7 +91,7 @@ export default function Campaigns() {
       ) : filtered.length === 0 ? (
         <Empty
           title="No campaigns found"
-          text={campaigns?.length ? 'Try a different search or status.' : 'Create your first campaign to get started.'}
+          text={campaigns?.length ? `No ${tab.label.toLowerCase()} campaigns${search ? ` matching "${search}"` : ''}.` : 'Create your first campaign to get started.'}
           action={!campaigns?.length && (
             <PrimaryButton onClick={() => navigate('/campaigns/new')}>Create campaign →</PrimaryButton>
           )}

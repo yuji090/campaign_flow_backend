@@ -14,6 +14,7 @@ import Users from './pages/Users'
 import Finance from './pages/Finance'
 import Payments from './pages/Payments'
 import Periods from './pages/Periods'
+import MonthlyEntry from './pages/MonthlyEntry'
 
 export default function App() {
   return (
@@ -35,6 +36,7 @@ export default function App() {
 
             <Route path="/distributions/:id" element={<DistributionDetail />} />
 
+            <Route path="/monthly" element={<MonthlyEntry />} />
             <Route path="/finance" element={<Finance />} />
             <Route path="/payments" element={<Payments />} />
             <Route path="/periods" element={<Periods />} />

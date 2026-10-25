@@ -341,7 +341,7 @@ public class CampaignService {
         return response;
     }
 
-    private CampaignMonthResponse toMonthResponse(CampaignMonth entry, boolean closed) {
+    CampaignMonthResponse toMonthResponse(CampaignMonth entry, boolean closed) {
 
         CampaignMonthResponse response = new CampaignMonthResponse();
 

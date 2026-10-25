@@ -36,11 +36,13 @@ The app runs on http://localhost:5173 and talks to the backend at `VITE_API_URL`
 
 | Where | What is entered |
 |---|---|
+| **Monthly entry** page | A whole month on one screen: every live campaign's revenue and every publisher's events and payout |
 | Campaign → month | Advertiser's revenue (+ optional signed **adjustment** for clawbacks/bonuses, with a reason) and approved events |
 | Distribution → month | Publisher's total and payable events, payout (pre-filled as payable × rate), optional advertiser-approved events, optional adjustment |
 | Partner / Payments | Money **received** from advertisers and **paid** to publishers, with deductions (TDS, fees), or a **write-off** to clear a balance |
 | Month close (admin) | Locks a month's revenue, payouts and exchange rates; corrections then go in as adjustments in an open month |
 
+- Press **Ctrl/⌘ K** anywhere to jump to a campaign, partner, distribution or page.
 - Profit = revenue − payout, always calculated live, never stored.
 - Partner balance = all billed − payments − write-offs, per currency.
 - A campaign's advertiser, direct flag and currency are fixed once it has revenue or distributions.

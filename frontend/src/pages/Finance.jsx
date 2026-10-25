@@ -244,8 +244,8 @@ export default function Finance() {
               <Table
                 columns={[
                   { label: 'Partner' },
-                  { label: 'They owe us', align: 'right' },
-                  { label: 'We owe them', align: 'right' },
+                  { label: 'They owe us', align: 'right', tip: 'Revenue billed to them minus what they paid and what was written off.' },
+                  { label: 'We owe them', align: 'right', tip: 'Payout billed by them minus what we paid and what was written off.' },
                   { label: `Billed · ${label}`, align: 'right' },
                 ]}
               >

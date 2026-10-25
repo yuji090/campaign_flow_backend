@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api } from '../services/api'
 import useLoad from '../lib/useLoad'
 import { money } from '../lib/format'
@@ -19,7 +20,9 @@ export default function Payments() {
   const [period, setPeriod] = useState(() => makePeriod('month'))
   const [direction, setDirection] = useState('')
   const [search, setSearch] = useState('')
-  const [paymentForm, setPaymentForm] = useState(null) // { payment } or {}
+  const [params, setParams] = useSearchParams()
+  // /payments?new=1 (from search) opens the form straight away
+  const [paymentForm, setPaymentForm] = useState(() => (params.get('new') ? {} : null)) // { payment } or {}
   const [actionError, setActionError] = useState('')
 
   const query = periodQuery(period)
@@ -139,9 +142,13 @@ export default function Payments() {
       {paymentForm && (
         <PaymentModal
           payment={paymentForm.payment}
-          onClose={() => setPaymentForm(null)}
+          onClose={() => {
+            setPaymentForm(null)
+            if (params.get('new')) setParams({}, { replace: true })
+          }}
           onSaved={() => {
             setPaymentForm(null)
+            if (params.get('new')) setParams({}, { replace: true })
             reload()
           }}
         />

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { money } from '../lib/format'
+import InfoTip from './InfoTip'
 
 /* ----------------------------- */
 /* Form controls                 */
@@ -188,14 +189,15 @@ export function Table({ columns, children, footer }) {
       <table className="w-full border-collapse text-[13px]">
         <thead>
           <tr>
-            {columns.map((column) => (
+            {columns.map((column, index) => (
               <th
-                key={column.label}
+                key={column.key || (typeof column.label === 'string' && column.label) || index}
                 className={`text-[#667085] text-[10px] font-extrabold tracking-[.6px] uppercase py-[10px] px-3 border-b border-[#e6eaf0] whitespace-nowrap ${
                   column.align === 'right' ? 'text-right' : 'text-left'
                 }`}
               >
                 {column.label}
+                {column.tip && <span className="ml-1"><InfoTip text={column.tip} /></span>}
               </th>
             ))}
           </tr>
@@ -435,8 +437,20 @@ export function Empty({ title, text, action }) {
   )
 }
 
+// Grey placeholder blocks in the shape of a page, so the layout does not jump when data arrives
 export function Loading({ text = 'Loading…' }) {
-  return <div className="text-[#667085] text-xs py-10 text-center">{text}</div>
+  const bar = 'rounded-[8px] bg-[linear-gradient(90deg,#eef1f5_25%,#f6f8fb_50%,#eef1f5_75%)] bg-[length:200%_100%] animate-[shimmer_1.2s_linear_infinite]'
+
+  return (
+    <div className="grid grid-cols-1 gap-[15px] py-2" role="status" aria-label={text}>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-[15px]">
+        {[0, 1, 2, 3].map((i) => <div key={i} className={`${bar} h-[84px]`} />)}
+      </div>
+      <div className={`${bar} h-[44px]`} />
+      <div className={`${bar} h-[220px]`} />
+      <span className="sr-only">{text}</span>
+    </div>
+  )
 }
 
 export function ErrorBox({ message }) {

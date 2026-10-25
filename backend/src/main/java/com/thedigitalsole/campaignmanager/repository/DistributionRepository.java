@@ -24,6 +24,10 @@ public interface DistributionRepository
 
     boolean existsByCampaignId(Long campaignId);
 
+    // Every distribution with its publisher and campaign, for screens that list them all
+    @Query("select d from Distribution d join fetch d.publisher join fetch d.campaign")
+    List<Distribution> findAllWithPublisher();
+
     @Query("select distinct d.campaign.id from Distribution d")
     Set<Long> findCampaignIdsWithDistributions();
 }

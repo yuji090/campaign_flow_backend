@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Toaster from '../Toaster'
+import CommandPalette from '../CommandPalette'
 
 // Sidebar item to highlight for each section; each page renders its own PageHeader
 const sections = [
   { prefix: '/campaigns', view: 'campaigns' },
   { prefix: '/distributions', view: 'campaigns' },
+  { prefix: '/monthly', view: 'monthly' },
   { prefix: '/finance', view: 'finance' },
   { prefix: '/payments', view: 'payments' },
   { prefix: '/periods', view: 'periods' },
@@ -36,6 +38,14 @@ export default function AppLayout() {
             ☰
           </button>
           <div className="font-extrabold">Campaign<span className="text-[#9db9ff]">Flow</span></div>
+          <button
+            type="button"
+            aria-label="Search"
+            onClick={() => window.dispatchEvent(new Event('app-search'))}
+            className="ml-auto border-0 bg-transparent text-white text-[18px] cursor-pointer"
+          >
+            ⌕
+          </button>
         </div>
 
         <main className="w-full max-w-[1440px] px-4 sm:px-6 lg:px-[38px] pb-[56px] mx-auto">
@@ -44,6 +54,7 @@ export default function AppLayout() {
       </div>
 
       <Toaster />
+      <CommandPalette />
     </div>
   )
 }

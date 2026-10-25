@@ -8,7 +8,7 @@ import { addMonths } from '../lib/period'
 import PageHeader from '../components/PageHeader'
 import { MonthPicker } from '../components/PeriodPicker'
 import TrendChart from '../components/TrendChart'
-import { Card, Empty, ErrorBox, LinkButton, Loading, Money, PrimaryButton, Row, Table, Td } from '../components/ui'
+import { Card, Empty, ErrorBox, LinkButton, Loading, Money, PrimaryButton, Row, SecondaryButton, Table, Td } from '../components/ui'
 
 const TREND_MONTHS = 6
 
@@ -46,7 +46,8 @@ export default function Dashboard() {
       actions={
         <>
           <MonthPicker value={month} onChange={setMonth} />
-          <PrimaryButton onClick={() => navigate('/campaigns/new')}>+ New campaign</PrimaryButton>
+          <SecondaryButton onClick={() => navigate('/campaigns/new')}>+ New campaign</SecondaryButton>
+          <PrimaryButton onClick={() => navigate(`/monthly?month=${month}`)}>✎ Enter {monthLabel(month).split(' ')[0]} numbers</PrimaryButton>
         </>
       }
     />
@@ -424,7 +425,7 @@ function GettingStarted({ partners, navigate }) {
     { done: partners.length > 0, title: 'Add partners', text: 'Advertisers give us campaigns, publishers run them. One company can be both.', to: '/partners' },
     { done: false, title: 'Create a campaign', text: 'Pick the advertiser (or mark it direct), pricing model and payout.', to: '/campaigns/new' },
     { done: false, title: 'Distribute it', text: 'Open the campaign and give it to one or more publishers.' },
-    { done: false, title: 'Enter monthly numbers', text: 'Revenue on the campaign, events and payout on each distribution.' },
+    { done: false, title: 'Enter monthly numbers', text: 'Use Monthly entry to fill in revenue and every publisher’s payout for a month on one screen.', to: '/monthly' },
   ]
 
   return (

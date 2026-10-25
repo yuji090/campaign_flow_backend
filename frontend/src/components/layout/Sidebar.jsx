@@ -13,6 +13,7 @@ const GROUPS = [
   {
     title: 'MONEY',
     items: [
+      { id: 'monthly', icon: '✎', label: 'Monthly entry', path: '/monthly' },
       { id: 'finance', icon: '◆', label: 'Finance', path: '/finance' },
       { id: 'payments', icon: '⇄', label: 'Payments', path: '/payments' },
       { id: 'periods', icon: '▣', label: 'Month close', path: '/periods' },
@@ -63,6 +64,20 @@ export default function Sidebar({ view, open, onClose }) {
             <div className="text-white font-extrabold text-xl">
               Campaign<span className="text-[#9db9ff]">Flow</span>
             </div>
+          </button>
+
+          {/* Search (Ctrl/⌘ K) */}
+          <button
+            type="button"
+            onClick={() => {
+              onClose?.()
+              window.dispatchEvent(new Event('app-search'))
+            }}
+            className="mt-5 w-full flex items-center gap-2 rounded-lg border border-[rgba(215,230,255,.16)] bg-[rgba(148,181,255,.06)] px-3 py-[9px] text-[12px] text-[#9fb2d8] cursor-pointer hover:bg-[rgba(148,181,255,.12)] hover:text-white transition"
+          >
+            <span aria-hidden>⌕</span>
+            Search…
+            <kbd className="ml-auto text-[10px] border border-[rgba(215,230,255,.24)] rounded px-[5px] py-[1px]">Ctrl K</kbd>
           </button>
 
           {GROUPS.filter((group) => !group.adminOnly || isAdmin()).map((group) => (

@@ -120,17 +120,21 @@ export default function PaymentModal({ partner, payment, preset = {}, outstandin
             </Field>
           )}
 
-          <Field label="Direction" required>
-            <Select value={form.direction} onChange={(e) => setField('direction', e.target.value)}>
-              <option value="RECEIVED" disabled={selected && !selected.advertiser}>They paid us (advertiser)</option>
-              <option value="PAID" disabled={selected && !selected.publisher}>We paid them (publisher)</option>
-            </Select>
-          </Field>
-
           <Field label="Type">
             <Select value={form.kind} onChange={(e) => setField('kind', e.target.value)}>
               <option value="PAYMENT">Payment (money moved)</option>
               <option value="WRITE_OFF">Write-off (no money, clear balance)</option>
+            </Select>
+          </Field>
+
+          <Field label={writeOff ? 'Which balance' : 'Direction'} required>
+            <Select value={form.direction} onChange={(e) => setField('direction', e.target.value)}>
+              <option value="RECEIVED" disabled={selected && !selected.advertiser}>
+                {writeOff ? 'What they owe us (advertiser)' : 'They paid us (advertiser)'}
+              </option>
+              <option value="PAID" disabled={selected && !selected.publisher}>
+                {writeOff ? 'What we owe them (publisher)' : 'We paid them (publisher)'}
+              </option>
             </Select>
           </Field>
 

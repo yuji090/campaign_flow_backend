@@ -4,6 +4,7 @@ import { api } from '../services/api'
 import useLoad from '../lib/useLoad'
 import { currentMonth, dateLabel, money, monthLabel, number } from '../lib/format'
 import { toast } from '../lib/toast'
+import { hasChanges, withSnapshot } from '../lib/draft'
 import DistributionModal from '../components/DistributionModal'
 import HistoryModal from '../components/HistoryModal'
 import useConfirm from '../components/useConfirm'
@@ -71,7 +72,7 @@ export default function DistributionDetail() {
     const used = new Set(months.map((m) => m.month))
 
     setActionError('')
-    setEntry({
+    setEntry(withSnapshot({
       month: used.has(currentMonth()) ? '' : currentMonth(),
       totalEvents: '',
       payableEvents: '',
@@ -83,12 +84,12 @@ export default function DistributionDetail() {
       showAdjustment: false,
       notes: '',
       existing: false,
-    })
+    }))
   }
 
   const openEditMonth = (m) => {
     setActionError('')
-    setEntry({
+    setEntry(withSnapshot({
       month: m.month,
       totalEvents: String(m.totalEvents),
       payableEvents: String(m.payableEvents),
@@ -101,7 +102,21 @@ export default function DistributionDetail() {
       notes: m.notes || '',
       version: m.version,
       existing: true,
-    })
+    }))
+  }
+
+  // Ask before throwing away typed numbers
+  const cancelEntry = async () => {
+    if (hasChanges(entry)) {
+      const ok = await confirm({
+        title: 'Discard your changes?',
+        message: 'What you typed in this form has not been saved.',
+        confirmLabel: 'Discard',
+        danger: true,
+      })
+      if (!ok) return
+    }
+    setEntry(null)
   }
 
   const setEntryField = (field, value) => setEntry((old) => {
@@ -303,6 +318,7 @@ export default function DistributionDetail() {
           {entry && (
             <form
               onSubmit={saveMonth}
+              onKeyDown={(e) => e.key === 'Escape' && cancelEntry()}
               className="border border-[#adc0ff] bg-[#f8faff] rounded-[10px] p-4 grid gap-[15px]"
             >
               <div className="flex items-center justify-between gap-3">
@@ -419,7 +435,7 @@ export default function DistributionDetail() {
               )}
 
               <div className="flex gap-[10px] justify-end">
-                <SecondaryButton onClick={() => setEntry(null)}>Cancel</SecondaryButton>
+                <SecondaryButton onClick={cancelEntry}>Cancel</SecondaryButton>
                 <PrimaryButton type="submit" disabled={saving}>
                   {saving ? 'Saving…' : `Save ${entry.month ? monthLabel(entry.month) : 'month'}`}
                 </PrimaryButton>
@@ -436,8 +452,8 @@ export default function DistributionDetail() {
                 { label: 'Total', align: 'right' },
                 { label: 'Payable', align: 'right' },
                 { label: 'Scrubbed', align: 'right' },
-                { label: 'Approved', align: 'right' },
-                { label: 'Payout', align: 'right' },
+                { label: 'Approved', align: 'right', tip: "Of this publisher's events, how many the advertiser accepted. Optional; makes the campaign's revenue split more accurate." },
+                { label: 'Payout', align: 'right', tip: 'What we owe this publisher for the month, including any adjustment.' },
                 { label: 'Updated by' },
                 { label: '' },
               ]}

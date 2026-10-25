@@ -354,7 +354,7 @@ public class DistributionService {
         return distribution.getLabel() != null ? name + " (" + distribution.getLabel() + ")" : name;
     }
 
-    private MonthEntryResponse toMonthResponse(DistributionMonth entry, boolean closed) {
+    MonthEntryResponse toMonthResponse(DistributionMonth entry, boolean closed) {
 
         MonthEntryResponse response = new MonthEntryResponse();
 

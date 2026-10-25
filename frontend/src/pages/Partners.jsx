@@ -6,7 +6,7 @@ import useLoad from '../lib/useLoad'
 import PartnerModal from '../components/PartnerModal'
 import PageHeader from '../components/PageHeader'
 import {
-  Card, Empty, ErrorBox, Input, Loading, PrimaryButton, Row, Select, Status, Table, Tag, Td,
+  Card, Empty, ErrorBox, Input, Loading, PrimaryButton, Row, Select, Status, Table, Tabs, Tag, Td, Toggle,
 } from '../components/ui'
 
 const TYPE_LABELS = { AGENCY: 'Agency', NETWORK: 'Network', DIRECT_BRAND: 'Direct brand' }
@@ -56,33 +56,34 @@ export default function Partners() {
         subtitle="Advertisers give us campaigns, publishers run them. One company can be both."
         actions={<PrimaryButton onClick={() => setShowModal(true)}>+ New partner</PrimaryButton>}
       />
-      <Card
-        eyebrow="ADVERTISERS & PUBLISHERS"
-        title={`${filtered.length} partner${filtered.length === 1 ? '' : 's'}`}
-        actions={
-          <>
+      <Card>
+        <div className="flex items-end justify-between gap-3 flex-wrap -mt-1 mb-4">
+          <div className="flex-1 min-w-[280px]">
+            <Tabs
+              value={role}
+              onChange={setRole}
+              tabs={[
+                { id: '', label: 'All' },
+                { id: 'ADVERTISER', label: 'Advertisers' },
+                { id: 'PUBLISHER', label: 'Publishers' },
+              ]}
+            />
+          </div>
+          <div className="flex gap-2 flex-wrap items-center">
             <Input
               placeholder="Search company"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-[180px]"
+              className="!w-[200px]"
             />
-            <Select value={role} onChange={(e) => setRole(e.target.value)} className="w-[140px]">
-              <option value="">All roles</option>
-              <option value="ADVERTISER">Advertisers</option>
-              <option value="PUBLISHER">Publishers</option>
-            </Select>
-            <Select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} className="w-[160px]">
-              <option value="">All employees</option>
+            <Select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} className="!w-[170px]" aria-label="Handled by">
+              <option value="">Everyone's partners</option>
               {(users || []).map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
             </Select>
-            <label className="text-xs text-[#667085] flex items-center gap-1 cursor-pointer">
-              <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
-              Inactive
-            </label>
-          </>
-        }
-      >
+            <Toggle checked={showInactive} onClick={() => setShowInactive(!showInactive)}>Show inactive</Toggle>
+          </div>
+        </div>
+
         <ErrorBox message={error} />
 
         {loading ? (

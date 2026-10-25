@@ -8,6 +8,7 @@ export default function Login() {
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -55,27 +56,32 @@ export default function Login() {
 
         <div>
           <div className="flex items-center gap-3">
-            {/* Logo yahan baad mein add karenge */}
-            <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center font-bold">
-              DS
+            <div className="w-10 h-10 rounded-[10px] bg-white/10 grid place-items-center overflow-hidden">
+              <img src="/the-digital-sole-logo.png" alt="" className="w-full h-full object-contain" />
             </div>
-
-            <span className="text-xl font-bold">
-              CampaignFlow
-            </span>
+            <span className="text-xl font-extrabold">Campaign<span className="text-[#c7d6ff]">Flow</span></span>
           </div>
 
           <div className="mt-24 max-w-lg">
-            <h1 className="text-4xl font-bold leading-tight">
-              Manage your campaigns.
+            <h1 className="text-4xl font-extrabold leading-tight tracking-[-.5px]">
+              Every campaign,
               <br />
-              Work smarter.
+              every rupee, one place.
             </h1>
 
             <p className="mt-5 text-blue-100 text-lg leading-relaxed">
-              Campaigns, partners, distributions and monthly
-              revenue in one simple workspace.
+              See where each campaign came from, who runs it, what partners owe us,
+              and what the company keeps every month.
             </p>
+
+            <ul className="mt-10 grid gap-3 text-[15px] text-blue-50 list-none p-0">
+              {['Monthly revenue and publisher payouts side by side', 'Partner balances after payments', 'Month close so final numbers stay final'].map((line) => (
+                <li key={line} className="flex items-center gap-3">
+                  <span className="w-5 h-5 rounded-full bg-white/15 grid place-items-center text-[11px]">✓</span>
+                  {line}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
 
@@ -87,6 +93,14 @@ export default function Login() {
       {/* Login section */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6">
         <div className="w-full max-w-md">
+
+          {/* Logo on small screens, where the branding panel is hidden */}
+          <div className="lg:hidden flex items-center gap-2 justify-center mb-6">
+            <div className="w-9 h-9 rounded-[9px] bg-[#3563e9] grid place-items-center overflow-hidden">
+              <img src="/the-digital-sole-logo.png" alt="" className="w-full h-full object-contain" />
+            </div>
+            <span className="text-xl font-extrabold text-[#172033]">Campaign<span className="text-[#3563e9]">Flow</span></span>
+          </div>
 
           <div className="bg-white border border-[#e6eaf0] rounded-[11px] p-8 shadow-sm">
 
@@ -115,6 +129,8 @@ export default function Login() {
 
                 <input
                   type="email"
+                  autoFocus
+                  autoComplete="username"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
@@ -129,15 +145,25 @@ export default function Login() {
                   Password
                 </label>
 
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  required
-                  disabled={loading}
-                  className="w-full h-11 rounded-[7px] border border-[#e6eaf0] px-3.5 text-sm text-[#172033] outline-none transition focus:border-[#3563e9] focus:ring-2 focus:ring-[#edf2ff] disabled:bg-gray-50"
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    required
+                    disabled={loading}
+                    className="w-full h-11 rounded-[7px] border border-[#e6eaf0] pl-3.5 pr-16 text-sm text-[#172033] outline-none transition focus:border-[#3563e9] focus:ring-2 focus:ring-[#edf2ff] disabled:bg-gray-50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 border-0 bg-transparent text-[12px] font-bold text-[#667085] cursor-pointer px-2 py-1 hover:text-[#3563e9]"
+                  >
+                    {showPassword ? 'Hide' : 'Show'}
+                  </button>
+                </div>
               </div>
 
               <button
@@ -152,7 +178,7 @@ export default function Login() {
           </div>
 
           <p className="text-center text-xs text-[#98a2b3] mt-6">
-            © The Digital Sole
+            Forgot your password? Ask an admin to reset it under Users.
           </p>
 
         </div>
